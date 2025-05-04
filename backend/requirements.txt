@@ -5,3 +5,4 @@ redis==5.2.1
 python-multipart==0.0.20
 pymongo==4.12.0
 scipy==1.15.2
+resemblyzer==0.1.4
