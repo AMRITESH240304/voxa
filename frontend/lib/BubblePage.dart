@@ -131,6 +131,8 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                       child: BubbleBlob(
                         size: animatedSize,
                         wobbleValue: _wobbleAnimation.value,
+                        progress: _moveAnimation.value,
+                        scale: _scaleAnimation.value,
                         color: Colors.blue.withOpacity(0.7),
                       ),
                     )
@@ -171,12 +173,16 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 class BubbleBlob extends StatelessWidget {
   final double size;
   final double wobbleValue;
+  final double progress;
+  final double scale; // <-- add this
   final Color color;
 
   const BubbleBlob({
     Key? key,
     required this.size,
     required this.wobbleValue,
+    required this.progress,
+    required this.scale, // <-- add this
     required this.color,
   }) : super(key: key);
 
@@ -189,6 +195,8 @@ class BubbleBlob extends StatelessWidget {
         painter: BubbleBlobPainter(
           color: color,
           wobbleValue: wobbleValue,
+          progress: progress,
+          scale: scale, // <-- add this
         ),
       ),
     );
@@ -198,8 +206,15 @@ class BubbleBlob extends StatelessWidget {
 class BubbleBlobPainter extends CustomPainter {
   final Color color;
   final double wobbleValue;
+  final double progress; // 0.0 (left) to 1.0 (right)
+  final double scale;    // <-- add this
 
-  BubbleBlobPainter({required this.color, required this.wobbleValue});
+  BubbleBlobPainter({
+    required this.color,
+    required this.wobbleValue,
+    required this.progress,
+    required this.scale, // <-- add this
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -210,12 +225,22 @@ class BubbleBlobPainter extends CustomPainter {
     final double centerX = size.width / 2;
     final double centerY = size.height / 2;
 
-    // Parameters for the main oval
-    final double mainRadiusX = size.width * 0.45;
-    final double mainRadiusY = size.height * 0.32;
-    final double wobble = math.sin(wobbleValue) * 8;
+    // Pinch: 1 at ends, 0 at center
+    double pinch = (progress - 0.5).abs() * 2;
 
-    // Draw only one big oval (cloud-like)
+    // Stronger pinch at ends
+    double minX = 0.10; // very narrow at ends
+    double maxX = 0.50; // wide in center
+    double minY = 0.60; // tall at ends
+    double maxY = 0.35; // short in center
+
+    double mainRadiusX = size.width * (minX + (maxX - minX) * (1 - pinch)) * scale;
+    double mainRadiusY = size.height * (minY - (minY - maxY) * (1 - pinch)) * scale;
+
+    // Wobble for cloudiness
+    final double wobble = math.sin(wobbleValue) * 8 * scale;
+
+    // Draw main oval
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset(centerX, centerY + wobble),
@@ -228,7 +253,10 @@ class BubbleBlobPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant BubbleBlobPainter oldDelegate) {
-    return oldDelegate.wobbleValue != wobbleValue || oldDelegate.color != color;
+    return oldDelegate.wobbleValue != wobbleValue ||
+        oldDelegate.color != color ||
+        oldDelegate.progress != progress ||
+        oldDelegate.scale != scale;
   }
 }
 

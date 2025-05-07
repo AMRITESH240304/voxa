@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/BubblePage.dart';
+import 'package:frontend/ballonPage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home:  const BubblePage(),
+      home:  const Ballonpage(),
     );
   }
 }
