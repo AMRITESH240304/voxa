@@ -35,11 +35,11 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     // Scale animation: start small, grow, then shrink
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.2, end: 100), // Start small, grow to full size
+        tween: Tween<double>(begin: 0.2, end: 1), // Start small, grow to full size
         weight: 40,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 100, end: 0.2), // Shrink back to small
+        tween: Tween<double>(begin: 1, end: 0.2), // Shrink back to small
         weight: 60,
       ),
     ]).animate(
@@ -110,7 +110,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             animation: _animationController,
             builder: (context, child) {
               // Base size of the blob
-              const double baseSize = 250.0;
+              const double baseSize = 100.0;
               // Scale the size based on animation
               final double animatedSize = baseSize * _scaleAnimation.value;
 
@@ -131,8 +131,6 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                       child: BubbleBlob(
                         size: animatedSize,
                         wobbleValue: _wobbleAnimation.value,
-                        progress: _moveAnimation.value,
-                        scale: _scaleAnimation.value,
                         color: Colors.blue.withOpacity(0.7),
                       ),
                     )
@@ -173,16 +171,12 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 class BubbleBlob extends StatelessWidget {
   final double size;
   final double wobbleValue;
-  final double progress;
-  final double scale; // <-- add this
   final Color color;
 
   const BubbleBlob({
     Key? key,
     required this.size,
     required this.wobbleValue,
-    required this.progress,
-    required this.scale, // <-- add this
     required this.color,
   }) : super(key: key);
 
@@ -195,8 +189,6 @@ class BubbleBlob extends StatelessWidget {
         painter: BubbleBlobPainter(
           color: color,
           wobbleValue: wobbleValue,
-          progress: progress,
-          scale: scale, // <-- add this
         ),
       ),
     );
@@ -206,15 +198,8 @@ class BubbleBlob extends StatelessWidget {
 class BubbleBlobPainter extends CustomPainter {
   final Color color;
   final double wobbleValue;
-  final double progress; // 0.0 (left) to 1.0 (right)
-  final double scale;    // <-- add this
 
-  BubbleBlobPainter({
-    required this.color,
-    required this.wobbleValue,
-    required this.progress,
-    required this.scale, // <-- add this
-  });
+  BubbleBlobPainter({required this.color, required this.wobbleValue});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -224,39 +209,32 @@ class BubbleBlobPainter extends CustomPainter {
 
     final double centerX = size.width / 2;
     final double centerY = size.height / 2;
+    final double radius = size.width / 2;
 
-    // Pinch: 1 at ends, 0 at center
-    double pinch = (progress - 0.5).abs() * 2;
+    final Path path = Path();
 
-    // Stronger pinch at ends
-    double minX = 0.10; // very narrow at ends
-    double maxX = 0.50; // wide in center
-    double minY = 0.60; // tall at ends
-    double maxY = 0.35; // short in center
+    // Create a blob shape with some wobble
+    for (double angle = 0; angle < 2 * math.pi; angle += 0.1) {
+      final double wobbleAmount = math.sin(angle * 4 + wobbleValue) * 0.1;
+      final double currRadius = radius * (1 + wobbleAmount);
 
-    double mainRadiusX = size.width * (minX + (maxX - minX) * (1 - pinch)) * scale;
-    double mainRadiusY = size.height * (minY - (minY - maxY) * (1 - pinch)) * scale;
+      final double x = centerX + currRadius * math.cos(angle);
+      final double y = centerY + currRadius * math.sin(angle);
 
-    // Wobble for cloudiness
-    final double wobble = math.sin(wobbleValue) * 8 * scale;
+      if (angle == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
 
-    // Draw main oval
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(centerX, centerY + wobble),
-        width: mainRadiusX * 2,
-        height: mainRadiusY * 2,
-      ),
-      paint,
-    );
+    path.close();
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant BubbleBlobPainter oldDelegate) {
-    return oldDelegate.wobbleValue != wobbleValue ||
-        oldDelegate.color != color ||
-        oldDelegate.progress != progress ||
-        oldDelegate.scale != scale;
+    return oldDelegate.wobbleValue != wobbleValue || oldDelegate.color != color;
   }
 }
 
