@@ -110,7 +110,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             animation: _animationController,
             builder: (context, child) {
               // Base size of the blob
-              const double baseSize = 200.0;
+              const double baseSize = 250.0;
               // Scale the size based on animation
               final double animatedSize = baseSize * _scaleAnimation.value;
 
@@ -209,27 +209,21 @@ class BubbleBlobPainter extends CustomPainter {
 
     final double centerX = size.width / 2;
     final double centerY = size.height / 2;
-    final double radius = size.width / 2;
 
-    final Path path = Path();
+    // Parameters for the main oval
+    final double mainRadiusX = size.width * 0.45;
+    final double mainRadiusY = size.height * 0.32;
+    final double wobble = math.sin(wobbleValue) * 8;
 
-    // Create a blob shape with some wobble
-    for (double angle = 0; angle < 2 * math.pi; angle += 0.1) {
-      final double wobbleAmount = math.sin(angle * 4 + wobbleValue) * 0.1;
-      final double currRadius = radius * (1 + wobbleAmount);
-
-      final double x = centerX + currRadius * math.cos(angle);
-      final double y = centerY + currRadius * math.sin(angle);
-
-      if (angle == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-
-    path.close();
-    canvas.drawPath(path, paint);
+    // Draw only one big oval (cloud-like)
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(centerX, centerY + wobble),
+        width: mainRadiusX * 2,
+        height: mainRadiusY * 2,
+      ),
+      paint,
+    );
   }
 
   @override
