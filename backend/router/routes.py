@@ -7,6 +7,8 @@ import uuid
 from resemblyzer import VoiceEncoder, preprocess_wav
 from db.db import creatSearch,Mongodb
 from datetime import datetime
+import httpx
+from service.Models import Input
 mongodb = Mongodb()
 router = APIRouter()
 cache = CacheHandler()
@@ -76,3 +78,34 @@ async def voice(
 async def getEmbedding():
     creatSearch()
     return {"message": "success"}
+
+@router.post("/keyCreate")
+async def keyCreate(input:Input):
+    url = "https://studio-api.cheqd.net/key/create?type=Ed25519"
+    headers = {
+        "accept": "application/json",
+        "x-api-key": "caas_515ff32ed3ab0617e830ba229b52e3c1cd166ea4d31e7966c1f7025512a3512715cd4e17acfaf86287fac53d79564b0555bea6d963ee0c432b9f1df1c986a70c"
+    }
+
+    timeout = httpx.Timeout(40.0)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, headers=headers)
+    except httpx.ReadTimeout:
+        raise HTTPException(status_code=504, detail="Upstream server timed out")
+
+    if response.status_code == 200:
+        data = response.json()
+
+        mongodb.updateKidId(user_id=input.userId,kid_id=data.get("kid"),publicKeyHex=data.get("publicKeyHex"))
+        return {
+            "kid": data.get("kid"),
+            "publicKeyHex": data.get("publicKeyHex")
+        }
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+@router.post("/attachCheqdDid")
+async def attachCheqdDid(cheqd_did:str,user_id:str):
+   pass

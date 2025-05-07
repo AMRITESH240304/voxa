@@ -49,3 +49,19 @@ class Mongodb:
             return True
         except Exception as e:
             raise Exception(f"Failed to store embeddings: {str(e)}")
+
+    def updateKidId(self, user_id: str, kid_id: str,publicKeyHex:str):
+        try:
+            self.collection.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {
+                        "kid_id": kid_id,
+                        "publicKeyHex":publicKeyHex
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            raise Exception(f"Failed to store embeddings: {str(e)}")
