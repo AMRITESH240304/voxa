@@ -12,6 +12,8 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   late AnimationController _upAnimationController;
   late AnimationController _downAnimationController;
   late AnimationController _growAnimationController; // Add this at the top
+  late AnimationController _leftLidController; // Added
+  late AnimationController _rightLidController; // Added
   late Animation<double> _moveUpAnimation;
   late Animation<double> _moveDownAnimation;
   late Animation<double> _scaleAnimation;
@@ -19,6 +21,8 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   late Animation<double> _wobbleDownAnimation;
   late Animation<double> _scaleDownAnimation; // Add this at the top
   late Animation<double> _growAnimation; // Add this at the top
+  late Animation<double> _leftLidAnimation; // Added
+  late Animation<double> _rightLidAnimation; // Added
   bool _isAnimatingUp = false;
   bool _isAtCenter = false;
   bool _isAnimatingDown = false;
@@ -108,25 +112,44 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       ),
     );
 
-    _upAnimationController.addStatusListener((status) {
+    _leftLidController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _rightLidController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _leftLidAnimation = Tween<double>(begin: 0.0, end: -0.9 * math.pi).animate(
+      CurvedAnimation(parent: _leftLidController, curve: Curves.easeInOut),
+    );
+    _rightLidAnimation = Tween<double>(begin: 0.0, end: 0.9 * math.pi).animate(
+      CurvedAnimation(parent: _rightLidController, curve: Curves.easeInOut),
+    );
+
+    _upAnimationController.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
         setState(() {
           _isAnimatingUp = false;
           _isAtCenter = true;
         });
-        _growAnimationController.forward(from: 0.0); // Start grow
+        _growAnimationController.forward(from: 0.0);
+        await Future.delayed(const Duration(milliseconds: 300));
+        _leftLidController.reverse(); // Close left lid
       }
     });
 
-    _downAnimationController.addStatusListener((status) {
+    _downAnimationController.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
         setState(() {
           _isAnimatingDown = false;
-          _isAtCenter = false; // Only set to false after animation completes
+          _isAtCenter = false;
         });
         _downAnimationController.reset();
         _upAnimationController.reset();
-        _growAnimationController.reset(); // Also reset grow animation
+        _growAnimationController.reset();
+        await Future.delayed(const Duration(milliseconds: 300));
+        _rightLidController.reverse(); // Close right lid
       }
     });
   }
@@ -136,11 +159,14 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     _upAnimationController.dispose();
     _downAnimationController.dispose();
     _growAnimationController.dispose();
+    _leftLidController.dispose();
+    _rightLidController.dispose();
     super.dispose();
   }
 
-  void _startUpAnimation() {
+  void _startUpAnimation() async {
     if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
+      await _leftLidController.forward(); // Open left lid first
       setState(() {
         _isAnimatingUp = true;
       });
@@ -148,8 +174,9 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     }
   }
 
-  void _startDownAnimation() {
+  void _startDownAnimation() async {
     if (_isAtCenter && !_isAnimatingDown) {
+      await _rightLidController.forward(); // Open right lid first
       setState(() {
         _isAnimatingDown = true;
       });
@@ -254,10 +281,12 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             bottom: 20,
             child: GestureDetector(
               onTap: _startUpAnimation,
-              child: StorageCanIcon(
+              child: StorageCanWithLid(
                 width: 40,
                 height: 60,
                 color: Colors.blueGrey,
+                lidAnimation: _leftLidAnimation,
+                isLeft: true,
               ),
             ),
           ),
@@ -266,10 +295,12 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
           Positioned(
             right: 20,
             bottom: 20,
-            child: StorageCanIcon(
+            child: StorageCanWithLid(
               width: 40,
               height: 60,
               color: Colors.blueGrey,
+              lidAnimation: _rightLidAnimation,
+              isLeft: false,
             ),
           ),
         ],
@@ -410,4 +441,104 @@ class StorageCanPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return true;
   }
+}
+
+class StorageCanWithLid extends StatelessWidget {
+  final double width;
+  final double height;
+  final Color color;
+  final Animation<double> lidAnimation;
+  final bool isLeft;
+
+  const StorageCanWithLid({
+    Key? key,
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.lidAnimation,
+    required this.isLeft,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final double lidWidth = width * 1.12;
+    final double lidHeight = height * 0.22;
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          StorageCanIcon(
+            width: width,
+            height: height,
+            color: color,
+          ),
+          // Lid sits on top, rotates from left or right edge
+          AnimatedBuilder(
+            animation: lidAnimation,
+            builder: (context, child) {
+              return Align(
+                alignment: Alignment.topCenter,
+                child: Transform.translate(
+                  offset: Offset(0, 0),
+                  child: Transform.rotate(
+                    angle: lidAnimation.value,
+                    alignment: isLeft ? Alignment(-1.0, -1.0) : Alignment(1.0, -1.0),
+                    child: CustomPaint(
+                      size: Size(lidWidth, lidHeight),
+                      painter: CanLidPainter(),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CanLidPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Metallic gradient
+    final Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final Gradient gradient = LinearGradient(
+      colors: [Colors.grey[300]!, Colors.grey[600]!, Colors.grey[200]!],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    final Paint paint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..style = PaintingStyle.fill;
+
+    // Draw lid ellipse
+    canvas.drawOval(rect, paint);
+
+    // Draw rim
+    final Paint rimPaint = Paint()
+      ..color = Colors.black.withOpacity(0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawOval(rect, rimPaint);
+
+    // Optional: add a highlight
+    final Paint highlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawArc(
+      Rect.fromLTWH(size.width * 0.15, size.height * 0.18, size.width * 0.7, size.height * 0.5),
+      -math.pi / 3,
+      math.pi / 2,
+      false,
+      highlightPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
