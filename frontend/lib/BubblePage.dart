@@ -16,6 +16,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   late Animation<double> _scaleAnimation;
   late Animation<double> _wobbleUpAnimation;
   late Animation<double> _wobbleDownAnimation;
+  late Animation<double> _scaleDownAnimation; // Add this at the top
   bool _isAnimatingUp = false;
   bool _isAtCenter = false;
   bool _isAnimatingDown = false;
@@ -65,6 +66,14 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     ]).animate(
       CurvedAnimation(
         parent: _upAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    // Add this for downward scale (from 1.0 to 0.2)
+    _scaleDownAnimation = Tween<double>(begin: 1.0, end: 0.2).animate(
+      CurvedAnimation(
+        parent: _downAnimationController,
         curve: Curves.easeInOut,
       ),
     );
@@ -169,8 +178,12 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               }
 
               const double baseSize = 100.0;
-              // Maintain size during downward animation
-              final double animatedSize = baseSize * (_isAnimatingDown ? 1.0 : _scaleAnimation.value);
+              double animatedSize;
+              if (_isAnimatingDown) {
+                animatedSize = baseSize * (_scaleDownAnimation.value ?? 1.0);
+              } else {
+                animatedSize = baseSize * (_scaleAnimation.value ?? 1.0);
+              }
 
               // Calculate position
               final double leftStart = 20.0;
