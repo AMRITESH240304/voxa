@@ -9,76 +9,125 @@ class BubblePage extends StatefulWidget {
 }
 
 class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _moveAnimation;
+  late AnimationController _upAnimationController;
+  late AnimationController _downAnimationController;
+  late Animation<double> _moveUpAnimation;
+  late Animation<double> _moveDownAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _wobbleAnimation;
-  bool _isAnimating = false;
+  late Animation<double> _wobbleUpAnimation;
+  late Animation<double> _wobbleDownAnimation;
+  bool _isAnimatingUp = false;
+  bool _isAtCenter = false;
+  bool _isAnimatingDown = false;
 
   @override
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 5),
+    // Initialize controller for moving up to center
+    _upAnimationController = AnimationController(
+      duration: const Duration(seconds: 3),
       vsync: this,
     );
 
-    // Movement animation from left to right
-    _moveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // Initialize controller for moving down to right can
+    _downAnimationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+
+    // Move up animation: from left to center
+    _moveUpAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 1.0, curve: Curves.easeInOut),
+        parent: _upAnimationController,
+        curve: Curves.easeInOut,
       ),
     );
 
-    // Scale animation: start small, grow, then shrink
+    // Move down animation: from center to right can
+    _moveDownAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _downAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    // Scale animation: start small, grow, stay at size
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.2, end: 1), // Start small, grow to full size
-        weight: 40,
+        tween: Tween<double>(begin: 0.2, end: 1.0),
+        weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1, end: 0.2), // Shrink back to small
-        weight: 60,
+        tween: Tween<double>(begin: 1.0, end: 1.0),
+        weight: 50,
       ),
     ]).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 1.0, curve: Curves.easeInOut),
+        parent: _upAnimationController,
+        curve: Curves.easeInOut,
       ),
     );
 
-    // Wobble animation for blob effect
-    _wobbleAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
+    // Wobble animation for upward movement
+    _wobbleUpAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 1.0, curve: Curves.linear),
+        parent: _upAnimationController,
+        curve: Curves.linear,
       ),
     );
 
-    _animationController.addStatusListener((status) {
+    // Wobble animation for downward movement
+    _wobbleDownAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
+      CurvedAnimation(
+        parent: _downAnimationController,
+        curve: Curves.linear,
+      ),
+    );
+
+    _upAnimationController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
-          _isAnimating = false;
+          _isAnimatingUp = false;
+          _isAtCenter = true;
         });
-        _animationController.reset();
+      }
+    });
+
+    _downAnimationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() {
+          _isAnimatingDown = false;
+          _isAtCenter = false;
+        });
+        _downAnimationController.reset();
+        _upAnimationController.reset();
       }
     });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _upAnimationController.dispose();
+    _downAnimationController.dispose();
     super.dispose();
   }
 
-  void _startAnimation() {
-    if (!_isAnimating) {
+  void _startUpAnimation() {
+    if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
       setState(() {
-        _isAnimating = true;
+        _isAnimatingUp = true;
       });
-      _animationController.forward(from: 0.0);
+      _upAnimationController.forward(from: 0.0);
+    }
+  }
+
+  void _startDownAnimation() {
+    if (_isAtCenter && !_isAnimatingDown) {
+      setState(() {
+        _isAnimatingDown = true;
+      });
+      _downAnimationController.forward(from: 0.0);
     }
   }
 
@@ -98,8 +147,13 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 ElevatedButton(
-                  onPressed: _startAnimation,
-                  child: const Text("Move Bubble"),
+                  onPressed: _startUpAnimation,
+                  child: const Text("Move Bubble Up"),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _isAtCenter ? _startDownAnimation : null,
+                  child: const Text("Bring Blob Down"),
                 ),
               ],
             ),
@@ -107,34 +161,55 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
           // Animated bubble blob
           AnimatedBuilder(
-            animation: _animationController,
+            animation: Listenable.merge([_upAnimationController, _downAnimationController]),
             builder: (context, child) {
-              // Base size of the blob
+              // Only render if an animation is active or blob is at center
+              if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
+                return const SizedBox.shrink();
+              }
+
               const double baseSize = 100.0;
-              // Scale the size based on animation
-              final double animatedSize = baseSize * _scaleAnimation.value;
+              // Maintain size during downward animation
+              final double animatedSize = baseSize * (_isAnimatingDown ? 1.0 : _scaleAnimation.value);
 
               // Calculate position
-              final double leftStart = 20.0; // Align with left storage can
-              final double leftEnd = screenSize.width - 20.0 - animatedSize; // Align with right storage can
-              final double left = leftStart + _moveAnimation.value * (leftEnd - leftStart);
+              final double leftStart = 20.0;
+              final double leftCenter = (screenSize.width - animatedSize) / 2;
+              final double leftEnd = screenSize.width - 20.0 - animatedSize;
 
-              // Vertical position: start at bottom, rise, then descend
-              const double bottomOffset = 20.0 + 60.0; // Align with storage can height
-              final double topStart = screenSize.height - bottomOffset - animatedSize;
-              final double top = topStart - math.sin(_moveAnimation.value * math.pi) * 600; // Arc motion
+              double left;
+              double top;
 
-              return _isAnimating
-                  ? Positioned(
-                      left: left,
-                      top: top,
-                      child: BubbleBlob(
-                        size: animatedSize,
-                        wobbleValue: _wobbleAnimation.value,
-                        color: Colors.blue.withOpacity(0.7),
-                      ),
-                    )
-                  : const SizedBox.shrink();
+              if (_isAnimatingUp) {
+                // Move to center
+                left = leftStart + _moveUpAnimation.value * (leftCenter - leftStart);
+                top = screenSize.height - 20.0 - 60.0 - animatedSize - _moveUpAnimation.value * (screenSize.height / 2 - animatedSize);
+              } else if (_isAtCenter && !_isAnimatingDown) {
+                // Stay at center
+                left = leftCenter;
+                top = screenSize.height / 2 - animatedSize;
+              } else if (_isAnimatingDown) {
+                // Move from center to right can
+                left = leftCenter + _moveDownAnimation.value * (leftEnd - leftCenter);
+                final double centerTop = screenSize.height / 2 - animatedSize;
+                final double endTop = screenSize.height - 20.0 - 60.0 - animatedSize;
+                top = centerTop + _moveDownAnimation.value * (endTop - centerTop);
+              } else {
+                return const SizedBox.shrink();
+              }
+
+              // Select wobble animation based on active state
+              final double wobbleValue = _isAnimatingDown ? _wobbleDownAnimation.value : _wobbleUpAnimation.value;
+
+              return Positioned(
+                left: left,
+                top: top,
+                child: BubbleBlob(
+                  size: animatedSize,
+                  wobbleValue: wobbleValue,
+                  color: Colors.blue.withOpacity(0.7),
+                ),
+              );
             },
           ),
 
@@ -143,7 +218,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             left: 20,
             bottom: 20,
             child: GestureDetector(
-              onTap: _startAnimation,
+              onTap: _startUpAnimation,
               child: StorageCanIcon(
                 width: 40,
                 height: 60,
@@ -213,7 +288,6 @@ class BubbleBlobPainter extends CustomPainter {
 
     final Path path = Path();
 
-    // Create a blob shape with some wobble
     for (double angle = 0; angle < 2 * math.pi; angle += 0.1) {
       final double wobbleAmount = math.sin(angle * 4 + wobbleValue) * 0.1;
       final double currRadius = radius * (1 + wobbleAmount);
@@ -277,19 +351,16 @@ class StorageCanPainter extends CustomPainter {
     final double width = size.width;
     final double height = size.height;
 
-    // Draw the can body (rectangle)
     canvas.drawRect(
       Rect.fromLTRB(0, height * 0.1, width, height),
       paint,
     );
 
-    // Draw the can lid (oval at top)
     canvas.drawOval(
       Rect.fromLTRB(0, 0, width, height * 0.2),
       paint,
     );
 
-    // Draw horizontal lines on can (like ridges)
     for (int i = 1; i <= 3; i++) {
       double y = height * (0.1 + i * 0.2);
       canvas.drawLine(
