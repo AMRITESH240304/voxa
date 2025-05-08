@@ -409,37 +409,59 @@ class StorageCanPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
     final double width = size.width;
     final double height = size.height;
 
-    canvas.drawRect(
-      Rect.fromLTRB(0, height * 0.1, width, height),
-      paint,
-    );
+    // Simple solid color for can body
+    final Rect bodyRect = Rect.fromLTRB(0, height * 0.1, width, height);
+    final Paint bodyPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
 
-    canvas.drawOval(
-      Rect.fromLTRB(0, 0, width, height * 0.2),
-      paint,
-    );
+    // Draw can body (rectangle)
+    canvas.drawRect(bodyRect, bodyPaint);
 
+    // Draw can body rim (stroke)
+    final Paint bodyRimPaint = Paint()
+      ..color = Colors.black.withOpacity(0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRect(bodyRect, bodyRimPaint);
+
+    // Solid color for can top
+    final Rect topRect = Rect.fromLTRB(0, 0, width, height * 0.2);
+    final Paint topPaint = Paint()
+      ..color = color.withOpacity(0.85)
+      ..style = PaintingStyle.fill;
+
+    // Draw can top (ellipse)
+    canvas.drawOval(topRect, topPaint);
+
+    // Draw can top rim (stroke)
+    final Paint topRimPaint = Paint()
+      ..color = Colors.black.withOpacity(0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawOval(topRect, topRimPaint);
+
+    // Draw horizontal lines (grooves)
     for (int i = 1; i <= 3; i++) {
       double y = height * (0.1 + i * 0.2);
+      final Paint groovePaint = Paint()
+        ..color = Colors.black.withOpacity(0.08)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
       canvas.drawLine(
         Offset(0, y),
         Offset(width, y),
-        paint,
+        groovePaint,
       );
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+    return false;
   }
 }
 
@@ -504,15 +526,10 @@ class StorageCanWithLid extends StatelessWidget {
 class CanLidPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Metallic gradient
+    // Solid color for lid
     final Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final Gradient gradient = LinearGradient(
-      colors: [Colors.grey[300]!, Colors.grey[600]!, Colors.grey[200]!],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
     final Paint paint = Paint()
-      ..shader = gradient.createShader(rect)
+      ..color = Colors.grey[400]!
       ..style = PaintingStyle.fill;
 
     // Draw lid ellipse
@@ -524,19 +541,6 @@ class CanLidPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawOval(rect, rimPaint);
-
-    // Optional: add a highlight
-    final Paint highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawArc(
-      Rect.fromLTWH(size.width * 0.15, size.height * 0.18, size.width * 0.7, size.height * 0.5),
-      -math.pi / 3,
-      math.pi / 2,
-      false,
-      highlightPaint,
-    );
   }
 
   @override
