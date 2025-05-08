@@ -11,12 +11,14 @@ class BubblePage extends StatefulWidget {
 class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   late AnimationController _upAnimationController;
   late AnimationController _downAnimationController;
+  late AnimationController _growAnimationController; // Add this at the top
   late Animation<double> _moveUpAnimation;
   late Animation<double> _moveDownAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _wobbleUpAnimation;
   late Animation<double> _wobbleDownAnimation;
   late Animation<double> _scaleDownAnimation; // Add this at the top
+  late Animation<double> _growAnimation; // Add this at the top
   bool _isAnimatingUp = false;
   bool _isAtCenter = false;
   bool _isAnimatingDown = false;
@@ -35,6 +37,18 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     _downAnimationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
+    );
+
+    // Add this for grow animation
+    _growAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    _growAnimation = Tween<double>(begin: 1.0, end: 4).animate(
+      CurvedAnimation(
+        parent: _growAnimationController,
+        curve: Curves.easeOutBack,
+      ),
     );
 
     // Move up animation: from left to center
@@ -100,6 +114,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
           _isAnimatingUp = false;
           _isAtCenter = true;
         });
+        _growAnimationController.forward(from: 0.0); // Start grow
       }
     });
 
@@ -107,10 +122,11 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       if (status == AnimationStatus.completed) {
         setState(() {
           _isAnimatingDown = false;
-          _isAtCenter = false;
+          _isAtCenter = false; // Only set to false after animation completes
         });
         _downAnimationController.reset();
         _upAnimationController.reset();
+        _growAnimationController.reset(); // Also reset grow animation
       }
     });
   }
@@ -119,6 +135,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   void dispose() {
     _upAnimationController.dispose();
     _downAnimationController.dispose();
+    _growAnimationController.dispose();
     super.dispose();
   }
 
@@ -136,6 +153,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       setState(() {
         _isAnimatingDown = true;
       });
+      _growAnimationController.reset(); // Reset grow so it shrinks as it goes down
       _downAnimationController.forward(from: 0.0);
     }
   }
@@ -170,17 +188,19 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
           // Animated bubble blob
           AnimatedBuilder(
-            animation: Listenable.merge([_upAnimationController, _downAnimationController]),
+            animation: Listenable.merge([_upAnimationController, _downAnimationController, _growAnimationController]),
             builder: (context, child) {
               // Only render if an animation is active or blob is at center
               if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
                 return const SizedBox.shrink();
               }
 
-              const double baseSize = 200.0;
+              const double baseSize = 100.0;
               double animatedSize;
               if (_isAnimatingDown) {
                 animatedSize = baseSize * (_scaleDownAnimation.value ?? 1.0);
+              } else if (_isAtCenter && !_isAnimatingDown) {
+                animatedSize = baseSize * (_growAnimation.value ?? 1.0); // Use grow animation
               } else {
                 animatedSize = baseSize * (_scaleAnimation.value ?? 1.0);
               }
@@ -194,21 +214,21 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               double top;
 
               if (_isAnimatingUp) {
-                // Define explicit start and end positions for more control
-                final double startTop = screenSize.height - 20.0 - 60.0 - animatedSize; // just above bottom can
-                final double endTop = 74.0; // <-- set this to how far from the top you want the blob to go (e.g., 80px)
+                final double startCenterY = screenSize.height - 20.0 - 60.0 - baseSize / 2;
+                final double endCenterY = 60.0 + baseSize / 2;
+                final double centerY = startCenterY + _moveUpAnimation.value * (endCenterY - startCenterY);
                 left = leftStart + _moveUpAnimation.value * (leftCenter - leftStart);
-                top = startTop + _moveUpAnimation.value * (endTop - startTop);
+                top = centerY - animatedSize / 2;
               } else if (_isAtCenter && !_isAnimatingDown) {
-                // Stay at center
                 left = leftCenter;
-                top = screenSize.height / 4 - animatedSize;
+                final double centerY = screenSize.height / 6;
+                top = centerY - animatedSize / 2;
               } else if (_isAnimatingDown) {
-                // Move from center to right can
                 left = leftCenter + _moveDownAnimation.value * (leftEnd - leftCenter);
-                final double centerTop = screenSize.height / 4 - animatedSize;
-                final double endTop = screenSize.height - 20.0 - 60.0 - animatedSize;
-                top = centerTop + _moveDownAnimation.value * (endTop - centerTop);
+                final double centerY = screenSize.height / 4;
+                final double endCenterY = screenSize.height - 20.0 - 60.0 - baseSize / 2;
+                final double currentCenterY = centerY + _moveDownAnimation.value * (endCenterY - centerY);
+                top = currentCenterY - animatedSize / 2;
               } else {
                 return const SizedBox.shrink();
               }
@@ -299,16 +319,16 @@ class BubbleBlobPainter extends CustomPainter {
 
     final double centerX = size.width / 2;
     final double centerY = size.height / 2;
-    final double radius = size.width / 2;
+    final double radiusX = size.width / 2;
+    final double radiusY = size.height / 2 * 0.6; // 0.6 for a more oval shape
 
     final Path path = Path();
 
-    for (double angle = 0; angle < 2 * math.pi; angle += 0.1) {
-      final double wobbleAmount = math.sin(angle * 4 + wobbleValue) * 0.1;
-      final double currRadius = radius * (1 + wobbleAmount);
-
-      final double x = centerX + currRadius * math.cos(angle);
-      final double y = centerY + currRadius * math.sin(angle);
+    for (double angle = 0; angle < 2 * math.pi; angle += 0.05) {
+      // Wobble only the edge, not the aspect ratio
+      final double wobble = 1 + math.sin(angle * 4 + wobbleValue) * 0.08;
+      final double x = centerX + radiusX * math.cos(angle) * wobble;
+      final double y = centerY + radiusY * math.sin(angle) * wobble;
 
       if (angle == 0) {
         path.moveTo(x, y);
