@@ -197,19 +197,22 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
         children: [
           // Main content
           Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                ElevatedButton(
-                  onPressed: _startUpAnimation,
-                  child: const Text("Move Bubble Up"),
+            child: Padding(
+              padding:  EdgeInsets.only(top: 400),
+              child: GestureDetector(
+                onTap: () {
+                  if (!_isAtCenter && !_isAnimatingUp && !_isAnimatingDown) {
+                    _startUpAnimation();
+                  } else if (_isAtCenter && !_isAnimatingDown) {
+                    _startDownAnimation();
+                  }
+                },
+                child: Image.asset(
+                  'assets/voice_button.gif',
+                  width: 250,
+                  height: 250,
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _isAtCenter ? _startDownAnimation : null,
-                  child: const Text("Bring Blob Down"),
-                ),
-              ],
+              ),
             ),
           ),
 
