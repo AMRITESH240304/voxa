@@ -177,7 +177,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                 return const SizedBox.shrink();
               }
 
-              const double baseSize = 100.0;
+              const double baseSize = 200.0;
               double animatedSize;
               if (_isAnimatingDown) {
                 animatedSize = baseSize * (_scaleDownAnimation.value ?? 1.0);
@@ -194,17 +194,19 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               double top;
 
               if (_isAnimatingUp) {
-                // Move to center
+                // Define explicit start and end positions for more control
+                final double startTop = screenSize.height - 20.0 - 60.0 - animatedSize; // just above bottom can
+                final double endTop = 74.0; // <-- set this to how far from the top you want the blob to go (e.g., 80px)
                 left = leftStart + _moveUpAnimation.value * (leftCenter - leftStart);
-                top = screenSize.height - 20.0 - 60.0 - animatedSize - _moveUpAnimation.value * (screenSize.height / 2 - animatedSize);
+                top = startTop + _moveUpAnimation.value * (endTop - startTop);
               } else if (_isAtCenter && !_isAnimatingDown) {
                 // Stay at center
                 left = leftCenter;
-                top = screenSize.height / 2 - animatedSize;
+                top = screenSize.height / 4 - animatedSize;
               } else if (_isAnimatingDown) {
                 // Move from center to right can
                 left = leftCenter + _moveDownAnimation.value * (leftEnd - leftCenter);
-                final double centerTop = screenSize.height / 2 - animatedSize;
+                final double centerTop = screenSize.height / 4 - animatedSize;
                 final double endTop = screenSize.height - 20.0 - 60.0 - animatedSize;
                 top = centerTop + _moveDownAnimation.value * (endTop - centerTop);
               } else {
