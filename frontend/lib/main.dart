@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/BubblePage.dart';
-import 'package:frontend/ballonPage.dart';
+import 'package:frontend/views/BubblePage.dart';
+
 
 void main() {
   runApp(const MyApp());

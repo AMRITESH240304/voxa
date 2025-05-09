@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'dart:math' as math;
+
+import 'package:frontend/BubbleviewModel.dart/viewModelBubble.dart';
 
 class BubblePage extends StatefulWidget {
   const BubblePage({super.key});
@@ -9,180 +12,19 @@ class BubblePage extends StatefulWidget {
 }
 
 class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
-  late AnimationController _upAnimationController;
-  late AnimationController _downAnimationController;
-  late AnimationController _growAnimationController; // Add this at the top
-  late AnimationController _leftLidController; // Added
-  late AnimationController _rightLidController; // Added
-  late Animation<double> _moveUpAnimation;
-  late Animation<double> _moveDownAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _wobbleUpAnimation;
-  late Animation<double> _wobbleDownAnimation;
-  late Animation<double> _scaleDownAnimation; // Add this at the top
-  late Animation<double> _growAnimation; // Add this at the top
-  late Animation<double> _leftLidAnimation; // Added
-  late Animation<double> _rightLidAnimation; // Added
-  bool _isAnimatingUp = false;
-  bool _isAtCenter = false;
-  bool _isAnimatingDown = false;
+  late BubblePageViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize controller for moving up to center
-    _upAnimationController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    );
-
-    // Initialize controller for moving down to right can
-    _downAnimationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-
-    // Add this for grow animation
-    _growAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _growAnimation = Tween<double>(begin: 1.0, end: 4).animate(
-      CurvedAnimation(
-        parent: _growAnimationController,
-        curve: Curves.easeOutBack,
-      ),
-    );
-
-    // Move up animation: from left to center
-    _moveUpAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _upAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Move down animation: from center to right can
-    _moveDownAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _downAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Scale animation: start small, grow, stay at size
-    _scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.2, end: 1.0),
-        weight: 50,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.0),
-        weight: 50,
-      ),
-    ]).animate(
-      CurvedAnimation(
-        parent: _upAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Add this for downward scale (from 1.0 to 0.2)
-    _scaleDownAnimation = Tween<double>(begin: 1.0, end: 0.2).animate(
-      CurvedAnimation(
-        parent: _downAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Wobble animation for upward movement
-    _wobbleUpAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
-      CurvedAnimation(
-        parent: _upAnimationController,
-        curve: Curves.linear,
-      ),
-    );
-
-    // Wobble animation for downward movement
-    _wobbleDownAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
-      CurvedAnimation(
-        parent: _downAnimationController,
-        curve: Curves.linear,
-      ),
-    );
-
-    _leftLidController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _rightLidController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _leftLidAnimation = Tween<double>(begin: 0.0, end: -0.9 * math.pi).animate(
-      CurvedAnimation(parent: _leftLidController, curve: Curves.easeInOut),
-    );
-    _rightLidAnimation = Tween<double>(begin: 0.0, end: 0.9 * math.pi).animate(
-      CurvedAnimation(parent: _rightLidController, curve: Curves.easeInOut),
-    );
-
-    _upAnimationController.addStatusListener((status) async {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _isAnimatingUp = false;
-          _isAtCenter = true;
-        });
-        _growAnimationController.forward(from: 0.0);
-        await Future.delayed(const Duration(milliseconds: 300));
-        _leftLidController.reverse(); // Close left lid
-      }
-    });
-
-    _downAnimationController.addStatusListener((status) async {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _isAnimatingDown = false;
-          _isAtCenter = false;
-        });
-        _downAnimationController.reset();
-        _upAnimationController.reset();
-        _growAnimationController.reset();
-        await Future.delayed(const Duration(milliseconds: 300));
-        _rightLidController.reverse(); // Close right lid
-      }
-    });
+    _viewModel = BubblePageViewModel(vsync: this);
+    _viewModel.init();
   }
 
   @override
   void dispose() {
-    _upAnimationController.dispose();
-    _downAnimationController.dispose();
-    _growAnimationController.dispose();
-    _leftLidController.dispose();
-    _rightLidController.dispose();
+    _viewModel.dispose();
     super.dispose();
-  }
-
-  void _startUpAnimation() async {
-    if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
-      await _leftLidController.forward(); // Open left lid first
-      setState(() {
-        _isAnimatingUp = true;
-      });
-      _upAnimationController.forward(from: 0.0);
-    }
-  }
-
-  void _startDownAnimation() async {
-    if (_isAtCenter && !_isAnimatingDown) {
-      await _rightLidController.forward(); // Open right lid first
-      setState(() {
-        _isAnimatingDown = true;
-      });
-      _growAnimationController.reset(); // Reset grow so it shrinks as it goes down
-      _downAnimationController.forward(from: 0.0);
-    }
   }
 
   @override
@@ -198,13 +40,15 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
           // Main content
           Center(
             child: Padding(
-              padding:  EdgeInsets.only(top: 400),
+              padding: EdgeInsets.only(top: 400),
               child: GestureDetector(
                 onTap: () {
-                  if (!_isAtCenter && !_isAnimatingUp && !_isAnimatingDown) {
-                    _startUpAnimation();
-                  } else if (_isAtCenter && !_isAnimatingDown) {
-                    _startDownAnimation();
+                  if (!_viewModel.isAtCenter &&
+                      !_viewModel.isAnimatingUp &&
+                      !_viewModel.isAnimatingDown) {
+                    _viewModel.startUpAnimation();
+                  } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
+                    _viewModel.startDownAnimation();
                   }
                 },
                 child: Image.asset(
@@ -218,21 +62,27 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
           // Animated bubble blob
           AnimatedBuilder(
-            animation: Listenable.merge([_upAnimationController, _downAnimationController, _growAnimationController]),
+            animation: Listenable.merge([
+              _viewModel.upAnimationController,
+              _viewModel.downAnimationController,
+              _viewModel.growAnimationController,
+            ]),
             builder: (context, child) {
               // Only render if an animation is active or blob is at center
-              if (!_isAnimatingUp && !_isAtCenter && !_isAnimatingDown) {
+              if (!_viewModel.isAnimatingUp &&
+                  !_viewModel.isAtCenter &&
+                  !_viewModel.isAnimatingDown) {
                 return const SizedBox.shrink();
               }
 
               const double baseSize = 100.0;
               double animatedSize;
-              if (_isAnimatingDown) {
-                animatedSize = baseSize * (_scaleDownAnimation.value ?? 1.0);
-              } else if (_isAtCenter && !_isAnimatingDown) {
-                animatedSize = baseSize * (_growAnimation.value ?? 1.0); // Use grow animation
+              if (_viewModel.isAnimatingDown) {
+                animatedSize = baseSize * (_viewModel.scaleDownAnimation.value);
+              } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
+                animatedSize = baseSize * (_viewModel.growAnimation.value);
               } else {
-                animatedSize = baseSize * (_scaleAnimation.value ?? 1.0);
+                animatedSize = baseSize * (_viewModel.scaleAnimation.value);
               }
 
               // Calculate position
@@ -243,28 +93,36 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               double left;
               double top;
 
-              if (_isAnimatingUp) {
-                final double startCenterY = screenSize.height - 20.0 - 60.0 - baseSize / 2;
+              if (_viewModel.isAnimatingUp) {
+                final double startCenterY =
+                    screenSize.height - 20.0 - 60.0 - baseSize / 2;
                 final double endCenterY = 60.0 + baseSize / 2;
-                final double centerY = startCenterY + _moveUpAnimation.value * (endCenterY - startCenterY);
-                left = leftStart + _moveUpAnimation.value * (leftCenter - leftStart);
+                final double centerY = startCenterY +
+                    _viewModel.moveUpAnimation.value * (endCenterY - startCenterY);
+                left = leftStart +
+                    _viewModel.moveUpAnimation.value * (leftCenter - leftStart);
                 top = centerY - animatedSize / 2;
-              } else if (_isAtCenter && !_isAnimatingDown) {
+              } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
                 left = leftCenter;
                 final double centerY = screenSize.height / 6;
                 top = centerY - animatedSize / 2;
-              } else if (_isAnimatingDown) {
-                left = leftCenter + _moveDownAnimation.value * (leftEnd - leftCenter);
+              } else if (_viewModel.isAnimatingDown) {
+                left = leftCenter +
+                    _viewModel.moveDownAnimation.value * (leftEnd - leftCenter);
                 final double centerY = screenSize.height / 4;
-                final double endCenterY = screenSize.height - 20.0 - 60.0 - baseSize / 2;
-                final double currentCenterY = centerY + _moveDownAnimation.value * (endCenterY - centerY);
+                final double endCenterY =
+                    screenSize.height - 20.0 - 60.0 - baseSize / 2;
+                final double currentCenterY = centerY +
+                    _viewModel.moveDownAnimation.value * (endCenterY - centerY);
                 top = currentCenterY - animatedSize / 2;
               } else {
                 return const SizedBox.shrink();
               }
 
               // Select wobble animation based on active state
-              final double wobbleValue = _isAnimatingDown ? _wobbleDownAnimation.value : _wobbleUpAnimation.value;
+              final double wobbleValue = _viewModel.isAnimatingDown
+                  ? _viewModel.wobbleDownAnimation.value
+                  : _viewModel.wobbleUpAnimation.value;
 
               return Positioned(
                 left: left,
@@ -283,12 +141,12 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             left: 20,
             bottom: 20,
             child: GestureDetector(
-              onTap: _startUpAnimation,
+              onTap: _viewModel.startUpAnimation,
               child: StorageCanWithLid(
                 width: 40,
                 height: 60,
                 color: Colors.blueGrey,
-                lidAnimation: _leftLidAnimation,
+                lidAnimation: _viewModel.leftLidAnimation,
                 isLeft: true,
               ),
             ),
@@ -302,7 +160,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               width: 40,
               height: 60,
               color: Colors.blueGrey,
-              lidAnimation: _rightLidAnimation,
+              lidAnimation: _viewModel.rightLidAnimation,
               isLeft: false,
             ),
           ),
@@ -354,12 +212,11 @@ class BubbleBlobPainter extends CustomPainter {
     final double centerX = size.width / 2;
     final double centerY = size.height / 2;
     final double radiusX = size.width / 2;
-    final double radiusY = size.height / 2 * 0.6; // 0.6 for a more oval shape
+    final double radiusY = size.height / 2 * 0.6;
 
     final Path path = Path();
 
     for (double angle = 0; angle < 2 * math.pi; angle += 0.05) {
-      // Wobble only the edge, not the aspect ratio
       final double wobble = 1 + math.sin(angle * 4 + wobbleValue) * 0.08;
       final double x = centerX + radiusX * math.cos(angle) * wobble;
       final double y = centerY + radiusY * math.sin(angle) * wobble;
@@ -415,39 +272,32 @@ class StorageCanPainter extends CustomPainter {
     final double width = size.width;
     final double height = size.height;
 
-    // Simple solid color for can body
     final Rect bodyRect = Rect.fromLTRB(0, height * 0.1, width, height);
     final Paint bodyPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
-    // Draw can body (rectangle)
     canvas.drawRect(bodyRect, bodyPaint);
 
-    // Draw can body rim (stroke)
     final Paint bodyRimPaint = Paint()
       ..color = Colors.black.withOpacity(0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawRect(bodyRect, bodyRimPaint);
 
-    // Solid color for can top
     final Rect topRect = Rect.fromLTRB(0, 0, width, height * 0.2);
     final Paint topPaint = Paint()
       ..color = color.withOpacity(0.85)
       ..style = PaintingStyle.fill;
 
-    // Draw can top (ellipse)
     canvas.drawOval(topRect, topPaint);
 
-    // Draw can top rim (stroke)
     final Paint topRimPaint = Paint()
       ..color = Colors.black.withOpacity(0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawOval(topRect, topRimPaint);
 
-    // Draw horizontal lines (grooves)
     for (int i = 1; i <= 3; i++) {
       double y = height * (0.1 + i * 0.2);
       final Paint groovePaint = Paint()
@@ -500,7 +350,6 @@ class StorageCanWithLid extends StatelessWidget {
             height: height,
             color: color,
           ),
-          // Lid sits on top, rotates from left or right edge
           AnimatedBuilder(
             animation: lidAnimation,
             builder: (context, child) {
@@ -529,16 +378,13 @@ class StorageCanWithLid extends StatelessWidget {
 class CanLidPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Solid color for lid
     final Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
     final Paint paint = Paint()
       ..color = Colors.grey[400]!
       ..style = PaintingStyle.fill;
 
-    // Draw lid ellipse
     canvas.drawOval(rect, paint);
 
-    // Draw rim
     final Paint rimPaint = Paint()
       ..color = Colors.black.withOpacity(0.18)
       ..style = PaintingStyle.stroke
