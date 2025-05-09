@@ -14,10 +14,24 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Colors.white70,
+            fontSize: 22,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF6E8AFA),
+          secondary: Color(0xFF9C64FF),
+        ),
       ),
-      home:  const BubblePage(),
+      home: const BubblePage(),
     );
   }
 }
