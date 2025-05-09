@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import 'dart:math' as math;
@@ -32,141 +34,171 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bubble Page'),
+  appBar: AppBar(
+    title: const Text('Bubble Page'),
+    backgroundColor: Colors.black.withOpacity(0.8), // Match app bar to dark theme
+  ),
+  body: Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.black.withOpacity(0.9),
+          Colors.grey[900]!.withOpacity(0.9),
+        ],
       ),
-      body: Stack(
-        children: [
-          // Main content
-          Center(
-            child: Padding(
-              padding: EdgeInsets.only(top: 400),
-              child: GestureDetector(
-                onTap: () {
-                  if (!_viewModel.isAtCenter &&
-                      !_viewModel.isAnimatingUp &&
-                      !_viewModel.isAnimatingDown) {
-                    _viewModel.startUpAnimation();
-                  } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
-                    _viewModel.startDownAnimation();
-                  }
-                },
-                child: Image.asset(
-                  'assets/voice_button.gif',
-                  width: 250,
-                  height: 250,
+      boxShadow: [
+        BoxShadow(
+          blurRadius: 20,
+          spreadRadius: 5,
+          color: Colors.black.withOpacity(0.3),
+        ),
+      ],
+      border: Border.all(
+        color: Colors.white.withOpacity(0.1),
+        width: 1.5,
+      ),
+    ),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), // Glassy blur effect
+      child: Container(
+        color: Colors.black.withOpacity(0.2), // Semi-transparent overlay
+        child: Stack(
+          children: [
+            // Main content
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 400),
+                child: GestureDetector(
+                  onTap: () {
+                    if (!_viewModel.isAtCenter &&
+                        !_viewModel.isAnimatingUp &&
+                        !_viewModel.isAnimatingDown) {
+                      _viewModel.startUpAnimation();
+                    } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
+                      _viewModel.startDownAnimation();
+                    }
+                  },
+                  child: Image.asset(
+                    'assets/voice_button.gif',
+                    width: 250,
+                    height: 250,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Animated bubble blob
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              _viewModel.upAnimationController,
-              _viewModel.downAnimationController,
-              _viewModel.growAnimationController,
-            ]),
-            builder: (context, child) {
-              // Only render if an animation is active or blob is at center
-              if (!_viewModel.isAnimatingUp &&
-                  !_viewModel.isAtCenter &&
-                  !_viewModel.isAnimatingDown) {
-                return const SizedBox.shrink();
-              }
+            // Animated bubble blob
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _viewModel.upAnimationController,
+                _viewModel.downAnimationController,
+                _viewModel.growAnimationController,
+              ]),
+              builder: (context, child) {
+                // Only render if an animation is active or blob is at center
+                if (!_viewModel.isAnimatingUp &&
+                    !_viewModel.isAtCenter &&
+                    !_viewModel.isAnimatingDown) {
+                  return const SizedBox.shrink();
+                }
 
-              const double baseSize = 100.0;
-              double animatedSize;
-              if (_viewModel.isAnimatingDown) {
-                animatedSize = baseSize * (_viewModel.scaleDownAnimation.value);
-              } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
-                animatedSize = baseSize * (_viewModel.growAnimation.value);
-              } else {
-                animatedSize = baseSize * (_viewModel.scaleAnimation.value);
-              }
+                const double baseSize = 100.0;
+                double animatedSize;
+                if (_viewModel.isAnimatingDown) {
+                  animatedSize = baseSize * (_viewModel.scaleDownAnimation.value);
+                } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
+                  animatedSize = baseSize * (_viewModel.growAnimation.value);
+                } else {
+                  animatedSize = baseSize * (_viewModel.scaleAnimation.value);
+                }
 
-              // Calculate position
-              final double leftStart = 20.0;
-              final double leftCenter = (screenSize.width - animatedSize) / 2;
-              final double leftEnd = screenSize.width - 20.0 - animatedSize;
+                // Calculate position
+                final double leftStart = 20.0;
+                final double leftCenter = (screenSize.width - animatedSize) / 2;
+                final double leftEnd = screenSize.width - 20.0 - animatedSize;
 
-              double left;
-              double top;
+                double left;
+                double top;
 
-              if (_viewModel.isAnimatingUp) {
-                final double startCenterY =
-                    screenSize.height - 20.0 - 60.0 - baseSize / 2;
-                final double endCenterY = 60.0 + baseSize / 2;
-                final double centerY = startCenterY +
-                    _viewModel.moveUpAnimation.value * (endCenterY - startCenterY);
-                left = leftStart +
-                    _viewModel.moveUpAnimation.value * (leftCenter - leftStart);
-                top = centerY - animatedSize / 2;
-              } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
-                left = leftCenter;
-                final double centerY = screenSize.height / 6;
-                top = centerY - animatedSize / 2;
-              } else if (_viewModel.isAnimatingDown) {
-                left = leftCenter +
-                    _viewModel.moveDownAnimation.value * (leftEnd - leftCenter);
-                final double centerY = screenSize.height / 4;
-                final double endCenterY =
-                    screenSize.height - 20.0 - 60.0 - baseSize / 2;
-                final double currentCenterY = centerY +
-                    _viewModel.moveDownAnimation.value * (endCenterY - centerY);
-                top = currentCenterY - animatedSize / 2;
-              } else {
-                return const SizedBox.shrink();
-              }
+                if (_viewModel.isAnimatingUp) {
+                  final double startCenterY =
+                      screenSize.height - 20.0 - 60.0 - baseSize / 2;
+                  final double endCenterY = 60.0 + baseSize / 2;
+                  final double centerY = startCenterY +
+                      _viewModel.moveUpAnimation.value * (endCenterY - startCenterY);
+                  left = leftStart +
+                      _viewModel.moveUpAnimation.value * (leftCenter - leftStart);
+                  top = centerY - animatedSize / 2;
+                } else if (_viewModel.isAtCenter && !_viewModel.isAnimatingDown) {
+                  left = leftCenter;
+                  final double centerY = screenSize.height / 6;
+                  top = centerY - animatedSize / 2;
+                } else if (_viewModel.isAnimatingDown) {
+                  left = leftCenter +
+                      _viewModel.moveDownAnimation.value * (leftEnd - leftCenter);
+                  final double centerY = screenSize.height / 4;
+                  final double endCenterY =
+                      screenSize.height - 20.0 - 60.0 - baseSize / 2;
+                  final double currentCenterY = centerY +
+                      _viewModel.moveDownAnimation.value * (endCenterY - centerY);
+                  top = currentCenterY - animatedSize / 2;
+                } else {
+                  return const SizedBox.shrink();
+                }
 
-              // Select wobble animation based on active state
-              final double wobbleValue = _viewModel.isAnimatingDown
-                  ? _viewModel.wobbleDownAnimation.value
-                  : _viewModel.wobbleUpAnimation.value;
+                // Select wobble animation based on active state
+                final double wobbleValue = _viewModel.isAnimatingDown
+                    ? _viewModel.wobbleDownAnimation.value
+                    : _viewModel.wobbleUpAnimation.value;
 
-              return Positioned(
-                left: left,
-                top: top,
-                child: BubbleBlob(
-                  size: animatedSize,
-                  wobbleValue: wobbleValue,
-                  color: Colors.blue.withOpacity(0.7),
+                return Positioned(
+                  left: left,
+                  top: top,
+                  child: BubbleBlob(
+                    size: animatedSize,
+                    wobbleValue: wobbleValue,
+                    color: Colors.blue.withOpacity(0.7),
+                  ),
+                );
+              },
+            ),
+
+            // Bottom left storage can icon
+            Positioned(
+              left: 20,
+              bottom: 20,
+              child: GestureDetector(
+                onTap: _viewModel.startUpAnimation,
+                child: StorageCanWithLid(
+                  width: 40,
+                  height: 60,
+                  color: Colors.blueGrey,
+                  lidAnimation: _viewModel.leftLidAnimation,
+                  isLeft: true,
                 ),
-              );
-            },
-          ),
+              ),
+            ),
 
-          // Bottom left storage can icon
-          Positioned(
-            left: 20,
-            bottom: 20,
-            child: GestureDetector(
-              onTap: _viewModel.startUpAnimation,
+            // Bottom right storage can icon
+            Positioned(
+              right: 20,
+              bottom: 20,
               child: StorageCanWithLid(
                 width: 40,
                 height: 60,
                 color: Colors.blueGrey,
-                lidAnimation: _viewModel.leftLidAnimation,
-                isLeft: true,
+                lidAnimation: _viewModel.rightLidAnimation,
+                isLeft: false,
               ),
             ),
-          ),
-
-          // Bottom right storage can icon
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: StorageCanWithLid(
-              width: 40,
-              height: 60,
-              color: Colors.blueGrey,
-              lidAnimation: _viewModel.rightLidAnimation,
-              isLeft: false,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
