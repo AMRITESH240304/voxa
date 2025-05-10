@@ -60,22 +60,11 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // Particle effect overlay
+          // If you want to keep the background image, use this instead:
           Positioned.fill(
-            child: ShaderMask(
-              shaderCallback: (Rect bounds) {
-                return RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.0,
-                  colors: [Colors.white, Colors.white.withOpacity(0.0)],
-                  stops: const [0.4, 1.0],
-                ).createShader(bounds);
-              },
-              blendMode: BlendMode.srcATop,
-              child: Image.asset(
-                'assets/bg.png',
-                fit: BoxFit.cover,
-              ),
+            child: Image.asset(
+              'assets/bg.png',
+              fit: BoxFit.cover,
             ),
           ),
           // Foreground content with glass effect
@@ -202,7 +191,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   Widget _buildVoiceButton() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.only(top: 100),
+        padding: const EdgeInsets.only(top: 600),
         child: GestureDetector(
           onTap: () {
             if (!_viewModel.isAtCenter &&
@@ -211,20 +200,9 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               _viewModel.startUpAnimation();
             }
           },
-          child: Container(
+          child: SizedBox(
             width: 250,
             height: 250,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.transparent,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF64FFDA).withOpacity(0.3),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -276,24 +254,27 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
   Widget _buildStatusText() {
     return Positioned(
-      bottom: 110,
+      bottom: 16,
       left: 0,
       right: 0,
       child: Center(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 500),
-          child: _viewModel.isBursting
-              ? const Text(
-                  "Voice sample doesn't match! Try again.",
+        child: Column(
+
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              child: _viewModel.isBursting
+                  ? const Text(
+                      "Voice sample doesn't match! Try again.",
                   style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
                 )
               : (_viewModel.isRecording
                   ? Column(
                       children: [
                         const Text(
-                          "Recording voice sample...",
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
+                          "Recording voice sample..",
+                              style: TextStyle(color: Colors.white, fontSize: 18),
+                            ),
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -314,15 +295,30 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                           "Processing voice sample...",
                           style: TextStyle(color: Colors.white, fontSize: 18),
                         )
-                      : (_viewModel.getRightCanColors().length == 5
-                          ? const Text(
-                              "Voice identity created successfully!",
-                              style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
-                            )
-                          : Text(
-                              "Tap the sphere to record samples",
-                              style: const TextStyle(color: Colors.white70, fontSize: 16),
-                            )))),
+                          : (_viewModel.getRightCanColors().length == 5
+                              ? const Text(
+                                  "Voice identity created!",
+                                  style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
+                                )
+                              : Text(
+                                  "Tap sphere to record",
+                                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                )))),
+            ),
+            const SizedBox(height: 8), // Add spacing between text and container
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white24, width: 1),
+              ),
+              child: const Text(
+                "Secured with cheqd DIDs",
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -445,18 +441,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                 colorLayers: _viewModel.getLeftCanColors(),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24, width: 1),
-              ),
-              child: const Text(
-                "Secured with cheqd DIDs",
-                style: TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ),
+           
             StorageCanWithLid(
               width: 50,
               height: 70,
