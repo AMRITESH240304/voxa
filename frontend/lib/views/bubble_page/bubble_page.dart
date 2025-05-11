@@ -63,7 +63,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // Particle effect overlay
+          // If you want to keep the background image, use this instead:
           Positioned.fill(
             child: Image.asset(
               'assets/bg.png',
