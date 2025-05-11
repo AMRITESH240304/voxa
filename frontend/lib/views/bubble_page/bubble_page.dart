@@ -2,7 +2,9 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:frontend/BubbleviewModel.dart/viewModelBubble.dart';
 import 'package:frontend/widgets/bubble_page/bubble_blob.dart';
+import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/storage_can.dart';
+import 'package:frontend/widgets/bubble_page/painters/audio_waveform_painter.dart';
 
 class BubblePage extends StatefulWidget {
   const BubblePage({super.key});
@@ -226,6 +228,22 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             child: Stack(
               alignment: Alignment.center,
               children: [
+                // Audio waveform visualization (only shown when recording)
+                if (_viewModel.isRecording)
+                  AnimatedBuilder(
+                    animation: _viewModel.waveformAnimation,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: const Size(250, 250),
+                        painter: AudioWaveformPainter(
+                          waveformData: _viewModel.waveformData,
+                          color: const Color(0xFF64FFDA),
+                          animationValue: _viewModel.waveformAnimation.value,
+                        ),
+                      );
+                    },
+                  ),
+                // Pulsing animation when not recording
                 if (!_viewModel.isAtCenter && !_viewModel.isAnimatingUp && !_viewModel.isAnimatingDown)
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.8, end: 1.2),
@@ -242,6 +260,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                       );
                     },
                   ),
+                // Voice button image
                 Image.asset(
                   'assets/voice_button.gif',
                   width: 200,
@@ -263,20 +282,47 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       child: Center(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 500),
-          child: _viewModel.isAtCenter
+          child: _viewModel.isBursting
               ? const Text(
-                  "Recording voice sample...",
-                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  "Voice sample doesn't match! Try again.",
+                  style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
                 )
-              : (_viewModel.getRightCanColors().length == 5
-                  ? const Text(
-                      "Voice identity created successfully!",
-                      style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
+              : (_viewModel.isRecording
+                  ? Column(
+                      children: [
+                        const Text(
+                          "Recording voice sample...",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF64FFDA).withOpacity(0.3)),
+                          ),
+                          child: const Text(
+                            "Speak clearly and naturally",
+                            style: TextStyle(color: Color(0xFF64FFDA), fontSize: 14),
+                          ),
+                        ),
+                      ],
                     )
-                  : Text(
-                      "Tap the sphere to record samples",
-                      style: const TextStyle(color: Colors.white70, fontSize: 16),
-                    )),
+                  : (_viewModel.isAtCenter
+                      ? const Text(
+                          "Processing voice sample...",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        )
+                      : (_viewModel.getRightCanColors().length == 5
+                          ? const Text(
+                              "Voice identity created successfully!",
+                              style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
+                            )
+                          : Text(
+                              "Tap the sphere to record samples",
+                              style: const TextStyle(color: Colors.white70, fontSize: 16),
+                            )))),
         ),
       ),
     );
@@ -288,8 +334,14 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
         _viewModel.upAnimationController,
         _viewModel.downAnimationController,
         _viewModel.growAnimationController,
+        _viewModel.burstAnimationController,
       ]),
       builder: (context, child) {
+        // Show burst animation if it's active
+        if (_viewModel.isBursting) {
+          return _buildBurstingBubble(screenSize);
+        }
+        
         if (!_viewModel.isAnimatingUp &&
             !_viewModel.isAtCenter &&
             !_viewModel.isAnimatingDown) {
@@ -354,6 +406,23 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       },
     );
   }
+  
+  Widget _buildBurstingBubble(Size screenSize) {
+    final double animatedSize = 200.0;
+    final double left = (screenSize.width - animatedSize) / 2;
+    final double centerY = screenSize.height / 4;
+    final double top = centerY - animatedSize / 2;
+    
+    return Positioned(
+      left: left,
+      top: top,
+      child: BubbleBurst(
+        size: animatedSize,
+        animationValue: _viewModel.burstAnimation.value,
+        color: _viewModel.activeColor,
+      ),
+    );
+  }
 
   Widget _buildStorageCans() {
     return Positioned(
@@ -401,4 +470,4 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
       ),
     );
   }
-} 
+}
