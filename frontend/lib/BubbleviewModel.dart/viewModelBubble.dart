@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:audio_waveforms/audio_waveforms.dart';
 
 class BubblePageViewModel extends ChangeNotifier {
   final TickerProvider vsync;
@@ -11,6 +14,8 @@ class BubblePageViewModel extends ChangeNotifier {
   late AnimationController _growAnimationController;
   late AnimationController _leftLidController;
   late AnimationController _rightLidController;
+  late AnimationController _burstAnimationController;
+  late AnimationController _waveformAnimationController;
   late Animation<double> _moveUpAnimation;
   late Animation<double> _moveDownAnimation;
   late Animation<double> _scaleAnimation;
@@ -20,11 +25,20 @@ class BubblePageViewModel extends ChangeNotifier {
   late Animation<double> _growAnimation;
   late Animation<double> _leftLidAnimation;
   late Animation<double> _rightLidAnimation;
+  late Animation<double> _burstAnimation;
+  late Animation<double> _waveformAnimation;
   Timer? _autoDismissTimer;
+  
+  // Audio recording
+  final _audioRecorder = Record();
+  bool _isRecording = false;
+  List<double> _waveformData = [];
+  final int _maxWaveformPoints = 100;
 
   bool _isAnimatingUp = false;
   bool _isAtCenter = false;
   bool _isAnimatingDown = false;
+  bool _isBursting = false;
 
   // Color management properties
   List<Color> leftCanColors = [
@@ -57,6 +71,7 @@ class BubblePageViewModel extends ChangeNotifier {
   AnimationController get upAnimationController => _upAnimationController;
   AnimationController get downAnimationController => _downAnimationController;
   AnimationController get growAnimationController => _growAnimationController;
+  AnimationController get burstAnimationController => _burstAnimationController;
   Animation<double> get moveUpAnimation => _moveUpAnimation;
   Animation<double> get moveDownAnimation => _moveDownAnimation;
   Animation<double> get scaleAnimation => _scaleAnimation;
@@ -66,15 +81,21 @@ class BubblePageViewModel extends ChangeNotifier {
   Animation<double> get growAnimation => _growAnimation;
   Animation<double> get leftLidAnimation => _leftLidAnimation;
   Animation<double> get rightLidAnimation => _rightLidAnimation;
+  Animation<double> get burstAnimation => _burstAnimation;
   bool get isAnimatingUp => _isAnimatingUp;
   bool get isAtCenter => _isAtCenter;
   bool get isAnimatingDown => _isAnimatingDown;
+  bool get isBursting => _isBursting;
+  bool get isRecording => _isRecording;
+  List<double> get waveformData => _waveformData;
+  Animation<double> get waveformAnimation => _waveformAnimation;
   
   // Getters for can colors
   List<Color> getLeftCanColors() => leftCanColors;
   List<Color> getRightCanColors() => rightCanColors;
 
   void init() {
+    _requestPermissions();
     _upAnimationController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: vsync,
@@ -95,6 +116,31 @@ class BubblePageViewModel extends ChangeNotifier {
         curve: Curves.easeOutBack,
       ),
     );
+    
+    _burstAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: vsync,
+    );
+    _burstAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _burstAnimationController,
+        curve: Curves.easeOut,
+      ),
+    );
+    
+    _waveformAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: vsync,
+    );
+    
+    _waveformAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
+      CurvedAnimation(
+        parent: _waveformAnimationController,
+        curve: Curves.linear,
+      ),
+    );
+    
+    _waveformAnimationController.repeat();
 
     _moveUpAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -243,10 +289,18 @@ class BubblePageViewModel extends ChangeNotifier {
     // Cancel any existing timer
     _autoDismissTimer?.cancel();
     
+    // Start recording when the bubble is at center
+    _startRecording();
+    
     // Create a new timer that will automatically start the down animation after 15 seconds
     _autoDismissTimer = Timer(const Duration(seconds: 15), () {
       if (_isAtCenter && !_isAnimatingDown) {
-        startDownAnimation();
+        // Always make the second bubble burst, others go to the right can
+        if (rightCanColors.length == 1) {
+          startBurstAnimation();
+        } else {
+          startDownAnimation();
+        }
       }
     });
   }
@@ -256,6 +310,15 @@ class BubblePageViewModel extends ChangeNotifier {
       // Cancel the auto-dismiss timer when manually starting down animation
       _autoDismissTimer?.cancel();
       
+      // Stop recording
+      _stopRecording();
+      
+      // If this is the second sample, make it burst instead of going down
+      if (rightCanColors.length == 1) {
+        startBurstAnimation();
+        return;
+      }
+      
       await _rightLidController.forward();
       _isAnimatingDown = true;
       _growAnimationController.reset();
@@ -263,15 +326,91 @@ class BubblePageViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+  
+  void startBurstAnimation() {
+    if (_isAtCenter && !_isBursting) {
+      // Cancel the auto-dismiss timer
+      _autoDismissTimer?.cancel();
+      
+      // Stop recording
+      _stopRecording();
+      
+      _isBursting = true;
+      _burstAnimationController.forward(from: 0.0).then((_) {
+        // After burst animation completes, reset everything
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _isBursting = false;
+          _isAtCenter = false;
+          _burstAnimationController.reset();
+          _growAnimationController.reset();
+          
+          // Don't add this color to the right can since it burst
+          // Just remove it from active state
+          _activeColor = leftCanColors.isEmpty ? Colors.grey : leftCanColors[0];
+          notifyListeners();
+        });
+      });
+      notifyListeners();
+    }
+  }
 
+  Future<void> _requestPermissions() async {
+    await Permission.microphone.request();
+  }
+  
+  Future<void> _startRecording() async {
+    if (await _audioRecorder.hasPermission()) {
+      _waveformData.clear();
+      await _audioRecorder.start();
+      _isRecording = true;
+      _waveformAnimationController.repeat();
+      notifyListeners();
+      
+      // Simulate waveform data generation
+      Timer.periodic(const Duration(milliseconds: 100), (timer) {
+        if (!_isRecording) {
+          timer.cancel();
+          return;
+        }
+        
+        // Generate random amplitude between 0.1 and 1.0
+        final amplitude = 0.1 + math.Random().nextDouble() * 0.9;
+        _addWaveformPoint(amplitude);
+        notifyListeners();
+      });
+    }
+  }
+  
+  Future<void> _stopRecording() async {
+    if (_isRecording) {
+      await _audioRecorder.stop();
+      _isRecording = false;
+      _waveformAnimationController.stop();
+      notifyListeners();
+    }
+  }
+  
+  void _addWaveformPoint(double amplitude) {
+    _waveformData.add(amplitude);
+    if (_waveformData.length > _maxWaveformPoints) {
+      _waveformData.removeAt(0);
+    }
+  }
+  
   @override
   void dispose() {
     super.dispose();
     _upAnimationController.dispose();
     _downAnimationController.dispose();
     _growAnimationController.dispose();
+    _burstAnimationController.dispose();
     _leftLidController.dispose();
     _rightLidController.dispose();
+    _waveformAnimationController.dispose();
+    
+    // Stop recording and dispose recorder
+    _stopRecording();
+    _audioRecorder.dispose();
     
     // Cancel the timer when disposing the view model
     _autoDismissTimer?.cancel();

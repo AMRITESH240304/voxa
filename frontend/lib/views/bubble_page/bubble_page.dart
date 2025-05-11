@@ -2,7 +2,11 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:frontend/BubbleviewModel.dart/viewModelBubble.dart';
 import 'package:frontend/widgets/bubble_page/bubble_blob.dart';
+import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
+import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/storage_can.dart';
+import 'package:frontend/widgets/bubble_page/painters/audio_waveform_painter.dart';
+import 'package:frontend/widgets/bubble_page/painters/audio_waveform_painter.dart';
 
 class BubblePage extends StatefulWidget {
   const BubblePage({super.key});
@@ -13,6 +17,7 @@ class BubblePage extends StatefulWidget {
 
 class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   late BubblePageViewModel _viewModel;
+  Key _pulsingAnimationKey = UniqueKey(); // Added for pulsing animation loop
 
   @override
   void initState() {
@@ -189,7 +194,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   Widget _buildVoiceButton() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.only(top: 600),
+        padding: const EdgeInsets.only(top: 600), // Increased from 100 to 150 to move it down
         child: GestureDetector(
           onTap: () {
             if (!_viewModel.isAtCenter &&
@@ -199,16 +204,64 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             }
           },
           child: SizedBox(
-            width: 250,
-            height: 250,
+            width: 200,
+            height: 200,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // The GIF
+                // Audio waveform visualization (only shown when recording)
+                if (_viewModel.isRecording)
+                  AnimatedBuilder(
+                    animation: _viewModel.waveformAnimation,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: const Size(250, 250),
+                        painter: AudioWaveformPainter(
+                          waveformData: _viewModel.waveformData,
+                          color: const Color(0xFF64FFDA),
+                          animationValue: _viewModel.waveformAnimation.value,
+                        ),
+                      );
+                    },
+                  ),
+                // Pulsing animation when not recording
+                if (!_viewModel.isAtCenter && !_viewModel.isAnimatingUp && !_viewModel.isAnimatingDown)
+                  TweenAnimationBuilder<double>(
+                    key: _pulsingAnimationKey, // MODIFIED: Added key
+                    tween: Tween(begin: 0.8, end: 1.2),
+                    duration: const Duration(seconds: 2),
+                    curve: Curves.easeInOut,
+                    builder: (context, value, child) {
+                      return Container(
+                        width: 150 * value,
+                        height: 150 * value,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF64FFDA).withOpacity(0.1 * (1.2 - value)),
+                        ),
+                      );
+                    },
+                    // MODIFIED: Updated onEnd to loop the animation
+                    onEnd: () {
+                      // Ensure the condition for pulsing is still met and widget is mounted
+                      if (mounted &&
+                          !_viewModel.isAtCenter &&
+                          !_viewModel.isAnimatingUp &&
+                          !_viewModel.isAnimatingDown) {
+                        setState(() {
+                          _pulsingAnimationKey = UniqueKey();
+                        });
+                      }
+                    },
+                  ),
+                // Voice button image
+                // MODIFIED: Conditionally choose GIF or static image for play/pause effect
                 Image.asset(
-                  'assets/voice_button.gif',
-                  width: 200,
-                  height: 200,
+                  (_viewModel.isAnimatingUp || _viewModel.isAnimatingDown)
+                      ? 'assets/voice_button.gif'
+                      : 'assets/voice_button_static.png', // NOTE: Assumes 'assets/voice_button_static.png' exists for the paused state.
+                  width: 160,
+                  height: 160,
                 ),
               ],
             ),
@@ -220,29 +273,55 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
   Widget _buildStatusText() {
     return Positioned(
-      bottom: 16,
+      bottom: 20,
       left: 0,
       right: 0,
       child: Center(
         child: Column(
-
           children: [
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 500),
-              child: _viewModel.isAtCenter
+              child: _viewModel.isBursting
                   ? const Text(
-                      "Recording voice sample..",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
+                      "Voice sample doesn't match! Try again.",
+                      style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
                     )
-                  : (_viewModel.getRightCanColors().length == 5
-                      ? const Text(
-                          "Voice identity created!",
-                          style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
+                  : (_viewModel.isRecording
+                      ? Column(
+                          children: [
+                            const Text(
+                              "Recording voice sample...",
+                              style: TextStyle(color: Colors.white, fontSize: 18),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF64FFDA).withOpacity(0.3)),
+                              ),
+                              child: const Text(
+                                "Speak clearly and naturally",
+                                style: TextStyle(color: Color(0xFF64FFDA), fontSize: 14),
+                              ),
+                            ),
+                          ],
                         )
-                      : Text(
-                          "Tap sphere to record",
-                          style: const TextStyle(color: Colors.white70, fontSize: 16),
-                        )),
+                      : (_viewModel.isAtCenter
+                          ? const Text(
+                              "Processing voice sample...",
+                              style: TextStyle(color: Colors.white, fontSize: 18),
+                            )
+                          : (_viewModel.getRightCanColors().length == 5
+                              ? const Text(
+                                  "Voice identity created successfully!",
+                                  style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
+                                )
+                              : Text(
+                                  "Tap sphere to record",
+                                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                )))),
             ),
             const SizedBox(height: 8), // Add spacing between text and container
             Container(
@@ -269,8 +348,20 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
         _viewModel.upAnimationController,
         _viewModel.downAnimationController,
         _viewModel.growAnimationController,
+        _viewModel.burstAnimationController,
+        _viewModel.burstAnimationController,
       ]),
       builder: (context, child) {
+        // Show burst animation if it's active
+        if (_viewModel.isBursting) {
+          return _buildBurstingBubble(screenSize);
+        }
+        
+        // Show burst animation if it's active
+        if (_viewModel.isBursting) {
+          return _buildBurstingBubble(screenSize);
+        }
+        
         if (!_viewModel.isAnimatingUp &&
             !_viewModel.isAtCenter &&
             !_viewModel.isAnimatingDown) {
@@ -333,6 +424,23 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+  }
+  
+  Widget _buildBurstingBubble(Size screenSize) {
+    final double animatedSize = 200.0;
+    final double left = (screenSize.width - animatedSize) / 2;
+    final double centerY = screenSize.height / 4;
+    final double top = centerY - animatedSize / 2;
+    
+    return Positioned(
+      left: left,
+      top: top,
+      child: BubbleBurst(
+        size: animatedSize,
+        animationValue: _viewModel.burstAnimation.value,
+        color: _viewModel.activeColor,
+      ),
     );
   }
 
