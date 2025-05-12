@@ -65,3 +65,35 @@ class Mongodb:
             return True
         except Exception as e:
             raise Exception(f"Failed to store embeddings: {str(e)}")
+
+    def get_public_key(self, user_id: str = None) -> dict:
+        try:
+            query = {"user_id": user_id} if user_id else {}
+            doc = self.collection.find_one(query, sort=[("_id", -1)])
+            if not doc or "publicKeyHex" not in doc:
+                raise Exception("No valid publicKeyHex found.")
+            return {
+                "publicKeyHex": doc["publicKeyHex"],
+                "user_id": doc.get("user_id"),
+                "kid_id": doc.get("kid_id")
+            }
+        except Exception as e:
+            raise Exception(f"Failed to fetch publicKeyHex: {str(e)}")
+    
+    def storeDidData(self, user_id: str, did_data: dict):
+        try:
+            self.collection.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {
+                        "did": did_data.get("did"),
+                        "controller": did_data.get("controller"),
+                        "services": did_data.get("services", []),
+                        "keys": did_data.get("keys", [])
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            raise Exception(f"Failed to store DID data: {str(e)}")
