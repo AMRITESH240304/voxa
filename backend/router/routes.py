@@ -9,6 +9,8 @@ from db.db import creatSearch,Mongodb
 from datetime import datetime
 import httpx
 from service.Models import Input
+import urllib.parse
+
 mongodb = Mongodb()
 router = APIRouter()
 cache = CacheHandler()
@@ -78,6 +80,52 @@ async def voice(
 async def getEmbedding():
     creatSearch()
     return {"message": "success"}
+
+@router.post("/didCreate/{user_id}/{public_key_hex}")
+async def didCreate(user_id: str, public_key_hex: str):
+
+    url = "https://studio-api.cheqd.net/did/create"
+    headers = {
+        "accept": "application/json",
+        "x-api-key": "caas_515ff32ed3ab0617e830ba229b52e3c1cd166ea4d31e7966c1f7025512a3512715cd4e17acfaf86287fac53d79564b0555bea6d963ee0c432b9f1df1c986a70c",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    # Construct the form data
+    form_data = {
+        "network": "testnet",
+        "identifierFormatType": "uuid",
+        "verificationMethodType": "Ed25519VerificationKey2018",
+        "service": '[{"idFragment":"service-1","type":"LinkedDomains","serviceEndpoint":["https://example.com"]}]',
+        "key": public_key_hex,
+        "@context": "https://www.w3.org/ns/did/v1"
+    }
+
+    # Encode form data
+    encoded_data = urllib.parse.urlencode(form_data)
+
+    try:
+        # Set timeout to 60 seconds
+        timeout = httpx.Timeout(60.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, headers=headers, content=encoded_data)
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Request error: {str(e)}")
+
+    if response.status_code == 200:
+        data = response.json()
+        try:
+            mongodb.storeDidData(user_id=user_id, did_data=data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"MongoDB error: {str(e)}")
+
+        return {
+            "message": "DID created and data stored",
+            "user_id": user_id,
+            "did": data.get("did")
+        }
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
 
 @router.post("/keyCreate")
 async def keyCreate(input:Input):
