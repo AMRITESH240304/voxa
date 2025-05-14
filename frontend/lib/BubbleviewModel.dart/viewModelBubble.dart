@@ -11,7 +11,10 @@ import 'package:uuid/uuid.dart';
 
 class VoiceService {
   static const String baseUrl = 'http://0.0.0.0:8000'; // Update with your backend URL
-  final String userId = const Uuid().v4(); // Generate random UUID for user
+  final String userId; // Generate random UUID for user
+
+  // Constructor that accepts a userId
+  VoiceService({required this.userId});
 
   Future<String> collectVoiceSample(String filePath) async {
     try {
@@ -77,7 +80,7 @@ class VoiceService {
 
 class BubblePageViewModel extends ChangeNotifier {
   final TickerProvider vsync;
-  final VoiceService _voiceService = VoiceService();
+  final VoiceService _voiceService;
   String? _publicKeyHex;
   String? _did;
 
@@ -139,7 +142,10 @@ class BubblePageViewModel extends ChangeNotifier {
   Color _activeColor = Colors.red;
   Color get activeColor => _activeColor;
 
-  BubblePageViewModel({required this.vsync});
+  BubblePageViewModel({required this.vsync})
+      : _voiceService = VoiceService(userId: const Uuid().v4()) {
+    init();
+  }
 
   AnimationController get upAnimationController => _upAnimationController;
   AnimationController get downAnimationController => _downAnimationController;
