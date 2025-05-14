@@ -87,7 +87,7 @@ async def didCreate(user_id: str, public_key_hex: str):
     url = "https://studio-api.cheqd.net/did/create"
     headers = {
         "accept": "application/json",
-        "x-api-key": "caas_515ff32ed3ab0617e830ba229b52e3c1cd166ea4d31e7966c1f7025512a3512715cd4e17acfaf86287fac53d79564b0555bea6d963ee0c432b9f1df1c986a70c",
+        "x-api-key": "caas_7f8eace1802a2b150a6f2a72ca1e6919284351595f7170ac02cbd65639ff5664dbeae84b8299774f933d58a8a78d4805e9a0f7cb06d1ee1398ac5874a582cddc",
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
@@ -132,7 +132,7 @@ async def keyCreate(input:Input):
     url = "https://studio-api.cheqd.net/key/create?type=Ed25519"
     headers = {
         "accept": "application/json",
-        "x-api-key": "caas_515ff32ed3ab0617e830ba229b52e3c1cd166ea4d31e7966c1f7025512a3512715cd4e17acfaf86287fac53d79564b0555bea6d963ee0c432b9f1df1c986a70c"
+        "x-api-key": "caas_7f8eace1802a2b150a6f2a72ca1e6919284351595f7170ac02cbd65639ff5664dbeae84b8299774f933d58a8a78d4805e9a0f7cb06d1ee1398ac5874a582cddc"
     }
 
     timeout = httpx.Timeout(40.0)
