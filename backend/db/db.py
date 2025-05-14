@@ -97,3 +97,15 @@ class Mongodb:
             return True
         except Exception as e:
             raise Exception(f"Failed to store DID data: {str(e)}")
+
+    def get_did_data(self, user_id: str) -> dict:
+        try:
+            doc = self.collection.find_one({"user_id": user_id}, sort=[("_id", -1)])
+            if not doc or "did" not in doc:
+                raise Exception("No valid DID data found.")
+            return {
+                "did": doc["did"],
+                "embedding_count": doc.get("voice_embeddings"),
+            }
+        except Exception as e:
+            raise Exception(f"Failed to fetch DID data: {str(e)}")
