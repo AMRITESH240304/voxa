@@ -2,32 +2,39 @@ PODS:
   - audio_waveforms (0.0.1):
     - Flutter
   - Flutter (1.0.0)
-  - permission_handler_apple (9.1.1):
+  - path_provider_foundation (0.0.1):
     - Flutter
-  - record (0.0.1):
+    - FlutterMacOS
+  - permission_handler_apple (9.3.0):
+    - Flutter
+  - record_ios (1.0.0):
     - Flutter
 
 DEPENDENCIES:
   - audio_waveforms (from `.symlinks/plugins/audio_waveforms/ios`)
   - Flutter (from `Flutter`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
-  - record (from `.symlinks/plugins/record/ios`)
+  - record_ios (from `.symlinks/plugins/record_ios/ios`)
 
 EXTERNAL SOURCES:
   audio_waveforms:
     :path: ".symlinks/plugins/audio_waveforms/ios"
   Flutter:
     :path: Flutter
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
-  record:
-    :path: ".symlinks/plugins/record/ios"
+  record_ios:
+    :path: ".symlinks/plugins/record_ios/ios"
 
 SPEC CHECKSUMS:
   audio_waveforms: a6dde7fe7c0ea05f06ffbdb0f7c1b2b2ba6cedcf
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  permission_handler_apple: 3787117e48f80715ff04a3830ca039283d6a4f29
-  record: 426d0643542aaca81f738c5d214ad99626b2f134
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+  record_ios: fee1c924aa4879b882ebca2b4bce6011bcfc3d8b
 
 PODFILE CHECKSUM: 4305caec6b40dde0ae97be1573c53de1882a07e5
 
