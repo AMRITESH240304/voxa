@@ -5,8 +5,6 @@ import 'package:frontend/widgets/bubble_page/bubble_blob.dart';
 import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/storage_can.dart';
-import 'package:frontend/widgets/bubble_page/painters/audio_waveform_painter.dart';
-import 'package:frontend/widgets/bubble_page/painters/audio_waveform_painter.dart';
 
 class BubblePage extends StatefulWidget {
   const BubblePage({super.key});
@@ -209,21 +207,6 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Audio waveform visualization (only shown when recording)
-                if (_viewModel.isRecording)
-                  AnimatedBuilder(
-                    animation: _viewModel.waveformAnimation,
-                    builder: (context, child) {
-                      return CustomPaint(
-                        size: const Size(250, 250),
-                        painter: AudioWaveformPainter(
-                          waveformData: _viewModel.waveformData,
-                          color: const Color(0xFF64FFDA),
-                          animationValue: _viewModel.waveformAnimation.value,
-                        ),
-                      );
-                    },
-                  ),
                 // Pulsing animation when not recording
                 if (!_viewModel.isAtCenter && !_viewModel.isAnimatingUp && !_viewModel.isAnimatingDown)
                   TweenAnimationBuilder<double>(

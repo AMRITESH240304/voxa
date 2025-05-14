@@ -1,13 +1,85 @@
 import 'dart:async';
-
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:uuid/uuid.dart';
+
+class VoiceService {
+  static const String baseUrl = 'http://0.0.0.0:8000'; // Update with your backend URL
+  final String userId = const Uuid().v4(); // Generate random UUID for user
+
+  Future<String> collectVoiceSample(String filePath) async {
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/collectVoice'));
+      request.headers['user-id'] = userId;
+      request.headers['Accept'] = 'application/json';
+      request.files.add(await http.MultipartFile.fromPath('file', filePath, contentType: MediaType('audio', 'wav')));
+      
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+      
+      if (response.statusCode == 200) {
+        return responseBody;
+      } else {
+        print('Error from server: ${response.statusCode}');
+        print('Error body: $responseBody');
+        throw Exception('Failed to collect voice sample: ${response.statusCode} - Body: $responseBody');
+      }
+    } catch (e) {
+      throw Exception('Error collecting voice sample: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> createKey() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/keyCreate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': userId,
+        },
+        body: jsonEncode({'userId': userId}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Error from server: ${response.statusCode}');
+        print('Error body: ${response.body}');
+        throw Exception('Failed to create key: ${response.statusCode} - Body: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error creating key: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> createDid(String publicKeyHex) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/didCreate/$userId/$publicKeyHex'),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to create DID: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating DID: $e');
+    }
+  }
+}
 
 class BubblePageViewModel extends ChangeNotifier {
   final TickerProvider vsync;
+  final VoiceService _voiceService = VoiceService();
+  String? _publicKeyHex;
+  String? _did;
 
   late AnimationController _upAnimationController;
   late AnimationController _downAnimationController;
@@ -30,11 +102,12 @@ class BubblePageViewModel extends ChangeNotifier {
   Timer? _autoDismissTimer;
   
   // Audio recording
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   bool _isRecording = false;
   List<double> _waveformData = [];
   final int _maxWaveformPoints = 100;
-
+  String _recordingPath = ''; // Add this line to store the recording path
+  
   bool _isAnimatingUp = false;
   bool _isAtCenter = false;
   bool _isAnimatingDown = false;
@@ -296,32 +369,26 @@ class BubblePageViewModel extends ChangeNotifier {
     _autoDismissTimer = Timer(const Duration(seconds: 15), () {
       if (_isAtCenter && !_isAnimatingDown) {
         // Always make the second bubble burst, others go to the right can
-        if (rightCanColors.length == 1) {
-          startBurstAnimation();
-        } else {
-          startDownAnimation();
-        }
+        startDownAnimation();
       }
     });
   }
   
   void startDownAnimation() async {
     if (_isAtCenter && !_isAnimatingDown) {
-      // Cancel the auto-dismiss timer when manually starting down animation
       _autoDismissTimer?.cancel();
       
-      // Stop recording
-      _stopRecording();
+      await _stopRecording(); 
       
-      // If this is the second sample, make it burst instead of going down
-      if (rightCanColors.length == 1) {
-        startBurstAnimation();
-        return;
+      if (_isBursting) {
+        print("Voice rejected and burst initiated. Skipping down animation.");
+        return; 
       }
       
+      print("Voice accepted or not bursting. Proceeding with down animation.");
       await _rightLidController.forward();
       _isAnimatingDown = true;
-      _growAnimationController.reset();
+      _growAnimationController.reset(); 
       _downAnimationController.forward(from: 0.0);
       notifyListeners();
     }
@@ -355,13 +422,57 @@ class BubblePageViewModel extends ChangeNotifier {
   }
 
   Future<void> _requestPermissions() async {
-    await Permission.microphone.request();
+    // Request microphone permission and check the status
+    var status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      print('Microphone permission not granted: $status');
+      
+      // If permission is permanently denied, guide the user to app settings
+      if (status == PermissionStatus.permanentlyDenied) {
+        print('Microphone permission permanently denied. Please enable it in app settings.');
+        // You might want to show a dialog here explaining why the permission is needed
+        // and guiding the user to open settings
+      }
+    }
   }
   
   Future<void> _startRecording() async {
-    if (await _audioRecorder.hasPermission()) {
+    try {
+      // Check if we have permission before attempting to record
+      if (!await _audioRecorder.hasPermission()) {
+        print('No recording permission. Checking status...');
+        
+        // Check if permission is permanently denied
+        var status = await Permission.microphone.status;
+        if (status == PermissionStatus.permanentlyDenied) {
+          print('Microphone permission permanently denied. Opening app settings...');
+          // Open app settings so user can enable the permission manually
+          await openAppSettings();
+          return; // Exit the method as we can't record without permission
+        }
+        
+        // Try requesting permission again
+        status = await Permission.microphone.request();
+        if (status != PermissionStatus.granted) {
+          print('Recording permission denied after request: $status');
+          return; // Exit the method as we can't record without permission
+        }
+      }
+      
+      // Clear previous waveform data
       _waveformData.clear();
-      await _audioRecorder.start();
+      
+      // Get the application documents directory for proper file storage on iOS
+      final directory = await getApplicationDocumentsDirectory();
+      _recordingPath = '${directory.path}/recording_${DateTime.now().millisecondsSinceEpoch}.wav';
+      print('Start recording to path: $_recordingPath');
+      
+      // Configure recorder with specific encoding options that match server expectations
+      await _audioRecorder.start(
+        RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: 16000, numChannels: 1, iosConfig: IosRecordConfig()),
+        path: _recordingPath,
+      );
+      
       _isRecording = true;
       _waveformAnimationController.repeat();
       notifyListeners();
@@ -378,18 +489,122 @@ class BubblePageViewModel extends ChangeNotifier {
         _addWaveformPoint(amplitude);
         notifyListeners();
       });
-    }
-  }
-  
-  Future<void> _stopRecording() async {
-    if (_isRecording) {
-      await _audioRecorder.stop();
+    } catch (e) {
+      print('Error starting recording: $e');
       _isRecording = false;
-      _waveformAnimationController.stop();
       notifyListeners();
     }
   }
   
+  Future<void> _stopRecording() async {
+    if (!_isRecording) {
+      print("Stop recording called, but not currently recording.");
+      return;
+    }
+
+    print('Attempting to stop recording. Initial path reference: $_recordingPath');
+    _isRecording = false; 
+    _waveformAnimationController.stop();
+
+    String? actualRecordingPath;
+    try {
+      actualRecordingPath = await _audioRecorder.stop();
+    } catch (e) {
+      print('Error stopping audio recorder: $e');
+      notifyListeners();
+      return;
+    }
+
+    if (actualRecordingPath == null) {
+      print('Error: Recording path is null after stopping audio recorder.');
+      notifyListeners();
+      return;
+    }
+    
+    _recordingPath = actualRecordingPath;
+    print('Recording stopped. File saved at: $_recordingPath');
+
+    try {
+      final responseString = await _voiceService.collectVoiceSample(_recordingPath);
+      print('Voice sample response: $responseString');
+      Map<String, dynamic> responseJson;
+      try {
+        responseJson = jsonDecode(responseString);
+      } catch (e) {
+        print('Error decoding JSON response from collectVoiceSample: $responseString. Error: $e');
+        throw Exception('Failed to decode JSON response: $responseString');
+      }
+
+      bool voiceRejected = false;
+      if (responseJson.containsKey('message') && responseJson['message'] is String) {
+        if (responseJson['message'].toString().startsWith('Voice rejected')) {
+          voiceRejected = true;
+        }
+      }
+
+      if (voiceRejected) {
+        print('Voice rejected by backend. Initiating burst sequence.');
+        _initiateBurstSequence(); 
+      } else {
+        print('Voice sample accepted or response not indicating rejection.');
+        if (leftCanColors.isEmpty && rightCanColors.length == 4) {
+          print('This is the 5th successful voice sample. Proceeding to create key and DID.');
+          try {
+            final keyData = await _voiceService.createKey();
+            _publicKeyHex = keyData['publicKeyHex'];
+            print('Public key hex: $_publicKeyHex');
+
+            if (_publicKeyHex != null) {
+              final didData = await _voiceService.createDid(_publicKeyHex!);
+              _did = didData['did'];
+              print('DID created: $_did');
+            } else {
+              print('Public key hex was null after createKey.');
+            }
+          } catch (e) {
+            print('Error during key/DID creation after 5th sample: $e');
+          }
+        } else {
+          print('Voice sample accepted. Not yet at 5 successful samples. Left: ${leftCanColors.length}, Right: ${rightCanColors.length}');
+        }
+      }
+    } catch (e) {
+      print('Error during voice sample processing (collect, key/DID): $e');
+    }
+    
+    if (!_isBursting) {
+        notifyListeners();
+    }
+  }
+  
+  void _initiateBurstSequence() {
+    if (!_isAtCenter || _isBursting) {
+      print("Burst sequence not initiated: Not at center or already bursting.");
+      return;
+    }
+
+    print("Initiating burst sequence.");
+    _autoDismissTimer?.cancel();
+
+    _isBursting = true;
+    _isAtCenter = false; 
+    _growAnimationController.reset(); 
+
+    _burstAnimationController.forward(from: 0.0).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        print("Burst animation completed.");
+        _isBursting = false;
+        _burstAnimationController.reset();
+        _upAnimationController.reset(); 
+        _downAnimationController.reset();
+        _growAnimationController.reset();
+        
+        notifyListeners();
+      });
+    });
+    notifyListeners();
+  }
+
   void _addWaveformPoint(double amplitude) {
     _waveformData.add(amplitude);
     if (_waveformData.length > _maxWaveformPoints) {
