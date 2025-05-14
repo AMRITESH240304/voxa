@@ -178,6 +178,7 @@ async def verify(
         return {
             "status": "success",
             "similarity": similarity,
+            "embedding":result,
             "message": "Voice verified successfully."
         }
     else:
