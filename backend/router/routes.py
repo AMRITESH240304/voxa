@@ -15,7 +15,6 @@ mongodb = Mongodb()
 router = APIRouter()
 cache = CacheHandler()
 encoder = VoiceEncoder()
-print(settings.REDIS_HOST)
 
 @router.get("/hello")
 def say_hello():
@@ -153,6 +152,41 @@ async def keyCreate(input:Input):
         }
     else:
         raise HTTPException(status_code=response.status_code, detail=response.text)
+
+@router.post("/verify")
+async def verify(
+    file: UploadFile = File(...),
+    user_id: str = Header(..., description="Unique identifier for the user")
+):
+    audio_bytes = await file.read()
+    with open("temp_audio.wav", "wb") as f:
+        f.write(audio_bytes)
+
+    wav = preprocess_wav("temp_audio.wav")
+    current_embedding = encoder.embed_utterance(wav)
+    
+    stored_data = mongodb.get_did_data(user_id)
+
+    try:
+        stored_embedding = np.array(stored_data["embedding_count"][0])
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=500, detail="Stored embedding is invalid or missing.")
+
+    similarity = 1 - cosine(current_embedding, stored_embedding)
+
+    if similarity >= 0.82:
+        return {
+            "status": "success",
+            "similarity": similarity,
+            "message": "Voice verified successfully."
+        }
+    else:
+        return {
+            "status": "failure",
+            "similarity": similarity,
+            "message": "Voice verification failed. Similarity too low."
+        }
+
 
 @router.post("/attachCheqdDid")
 async def attachCheqdDid(cheqd_did:str,user_id:str):
