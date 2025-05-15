@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/views/bubble_page/bubble_page.dart';
+import 'package:frontend/views/verify_page/verify_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,7 +32,7 @@ class MyApp extends StatelessWidget {
           secondary: Color(0xFF9C64FF),
         ),
       ),
-      home: const BubblePage(),
+      home: const VerifyPage(userId: "ceknjvn",),
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:frontend/BubbleviewModel.dart/viewModelBubble.dart';
+import 'package:frontend/views/success_page/success_page.dart';
 import 'package:frontend/widgets/bubble_page/bubble_blob.dart';
-import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/bubble_burst_animation.dart';
 import 'package:frontend/widgets/bubble_page/storage_can.dart';
 
@@ -35,6 +35,50 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   void _onViewModelChanged() {
     if (mounted) {
       setState(() {});
+      
+      // Check if we've collected 5 samples and need to navigate to success page
+      if (_viewModel.getRightCanColors().length >= 5) {
+        _navigateToSuccessPage();
+      }
+    }
+  }
+  
+  Future<void> _navigateToSuccessPage() async {
+    try {
+      // Create key and DID
+      final keyResponse = await _viewModel.createKey();
+      final publicKeyHex = keyResponse['publicKeyHex'];
+      final didResponse = await _viewModel.createDid(publicKeyHex);
+      
+      if (!mounted) return;
+      
+      // Navigate to success page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SuccessPage(
+            userId: _viewModel.userId,
+            did: didResponse['did'] ?? 'Unknown DID',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to create identity: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
