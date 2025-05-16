@@ -90,9 +90,15 @@ class BubblePageViewModel extends ChangeNotifier {
   final VoiceService _voiceService;
   String? _publicKeyHex;
   String? _did;
+  bool _didCreationInitiated = false;  // Add this flag to track if DID creation was initiated
+  bool _didCreationCompleted = false;  // Add this flag to track if DID creation was completed
   
   // Expose userId for navigation to success page
   String get userId => _voiceService.userId;
+
+  bool get didCreationInitiated => _didCreationInitiated;
+  bool get didCreationCompleted => _didCreationCompleted;
+  String? get did => _did;
 
   late AnimationController _upAnimationController;
   late AnimationController _downAnimationController;
@@ -572,9 +578,12 @@ class BubblePageViewModel extends ChangeNotifier {
         _initiateBurstSequence(); 
       } else {
         print('Voice sample accepted or response not indicating rejection.');
-        if (leftCanColors.isEmpty && rightCanColors.length == 4) {
+        if (leftCanColors.isEmpty && rightCanColors.length == 4 && !_didCreationInitiated) {
           print('This is the 5th successful voice sample. Proceeding to create key and DID.');
           try {
+            _didCreationInitiated = true; // Set the flag to prevent duplicate creation
+            notifyListeners(); // Notify listeners that we're starting DID creation
+            
             final keyData = await _voiceService.createKey();
             _publicKeyHex = keyData['publicKeyHex'];
             print('Public key hex: $_publicKeyHex');
@@ -583,11 +592,15 @@ class BubblePageViewModel extends ChangeNotifier {
               final didData = await _voiceService.createDid(_publicKeyHex!);
               _did = didData['did'];
               print('DID created: $_did');
+              _didCreationCompleted = true;
+              notifyListeners(); // Notify listeners that DID creation is complete
             } else {
               print('Public key hex was null after createKey.');
+              _didCreationInitiated = false; // Reset the flag if creation failed
             }
           } catch (e) {
             print('Error during key/DID creation after 5th sample: $e');
+            _didCreationInitiated = false; // Reset the flag if creation failed
           }
         } else {
           print('Voice sample accepted. Not yet at 5 successful samples. Left: ${leftCanColors.length}, Right: ${rightCanColors.length}');
