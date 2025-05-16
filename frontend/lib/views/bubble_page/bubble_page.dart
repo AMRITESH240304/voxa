@@ -45,10 +45,56 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
   
   Future<void> _navigateToSuccessPage() async {
     try {
-      // Create key and DID
-      final keyResponse = await _viewModel.createKey();
-      final publicKeyHex = keyResponse['publicKeyHex'];
-      final didResponse = await _viewModel.createDid(publicKeyHex);
+      String did;
+      
+      // If DID was already created in the ViewModel, use it directly
+      if (_viewModel.didCreationCompleted && _viewModel.did != null) {
+        did = _viewModel.did!;
+        print('Using already created DID: $did');
+      } else if (_viewModel.didCreationInitiated) {
+        // If DID creation was initiated but not completed, show a loading dialog
+        if (!mounted) return;
+        
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            title: Text('Please wait'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Creating your decentralized identity...'),
+              ],
+            ),
+          ),
+        );
+        
+        // Wait for DID creation to complete
+        const timeout = Duration(seconds: 20);
+        final stopwatch = Stopwatch()..start();
+        
+        while (!_viewModel.didCreationCompleted && stopwatch.elapsed < timeout) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+        
+        if (!mounted) return;
+        Navigator.of(context).pop(); // Close the loading dialog
+        
+        if (_viewModel.didCreationCompleted && _viewModel.did != null) {
+          did = _viewModel.did!;
+          print('DID creation completed during wait: $did');
+        } else {
+          throw Exception('DID creation timeout or failed');
+        }
+      } else {
+        // If DID creation was not initiated at all, initiate it now
+        final keyResponse = await _viewModel.createKey();
+        final publicKeyHex = keyResponse['publicKeyHex'];
+        final didResponse = await _viewModel.createDid(publicKeyHex);
+        did = didResponse['did'] ?? 'Unknown DID';
+      }
       
       if (!mounted) return;
       
@@ -58,7 +104,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
         MaterialPageRoute(
           builder: (context) => SuccessPage(
             userId: _viewModel.userId,
-            did: didResponse['did'] ?? 'Unknown DID',
+            did: did,
           ),
         ),
       );
@@ -300,7 +346,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
 
   Widget _buildStatusText() {
     return Positioned(
-      bottom: 20,
+      bottom: 40,
       left: 0,
       right: 0,
       child: Center(
@@ -342,7 +388,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                             )
                           : (_viewModel.getRightCanColors().length == 5
                               ? const Text(
-                                  "Voice identity created successfully!",
+                                  "Voice identity created!",
                                   style: TextStyle(color: Color(0xFF64FFDA), fontSize: 18, fontWeight: FontWeight.bold),
                                 )
                               : Text(
@@ -350,19 +396,7 @@ class _BubblePageState extends State<BubblePage> with TickerProviderStateMixin {
                                   style: const TextStyle(color: Colors.white70, fontSize: 16),
                                 )))),
             ),
-            const SizedBox(height: 8), // Add spacing between text and container
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24, width: 1),
-              ),
-              child: const Text(
-                "Secured with cheqd DIDs",
-                style: TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ),
+            
           ],
         ),
       ),

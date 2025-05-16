@@ -153,16 +153,12 @@ class _SuccessPageState extends State<SuccessPage> with SingleTickerProviderStat
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Success animation
-          Lottie.asset(
-            'assets/animations/success.json',
+          Image.asset(
+            'assets/successtf.gif',
             width: 200,
             height: 200,
             fit: BoxFit.contain,
-            repeat: false,
-            controller: _animationController,
-            onLoaded: (composition) {
-              _animationController.forward();
-            },
+            
           ),
           const SizedBox(height: 24),
           const Text(

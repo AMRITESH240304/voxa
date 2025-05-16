@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/views/bubble_page/bubble_page.dart';
+import 'package:frontend/views/success_page/success_page.dart';
 import 'package:frontend/views/verify_page/verify_page.dart';
+import 'package:frontend/views/splash_screen/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'VOXA',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: const AppBarTheme(
@@ -32,7 +34,7 @@ class MyApp extends StatelessWidget {
           secondary: Color(0xFF9C64FF),
         ),
       ),
-      home: const VerifyPage(userId: "ceknjvn",),
+      home: const SuccessPage(userId: 'db337d06-acd3-4c10-9ae1-042d6dc9ea98', did: 'did:cheqd:testnet:4e76b9a5-9204-4786-8271-871084a6c51a'),
     );
   }
 }
