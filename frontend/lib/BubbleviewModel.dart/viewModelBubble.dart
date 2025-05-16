@@ -37,52 +37,62 @@ class VoiceService {
       throw Exception('Error collecting voice sample: $e');
     }
   }
-
+  
   Future<Map<String, dynamic>> createKey() async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/keyCreate'),
         headers: {
           'Content-Type': 'application/json',
-          'user-id': userId,
+          'Accept': 'application/json',
         },
-        body: jsonEncode({'userId': userId}),
+        body: jsonEncode({
+          'userId': userId,
+        }),
       );
-
+      
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        print('Error from server: ${response.statusCode}');
+        print('Error creating key: ${response.statusCode}');
         print('Error body: ${response.body}');
-        throw Exception('Failed to create key: ${response.statusCode} - Body: ${response.body}');
+        throw Exception('Failed to create key: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error creating key: $e');
     }
   }
-
+  
   Future<Map<String, dynamic>> createDid(String publicKeyHex) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/didCreate/$userId/$publicKeyHex'),
+        headers: {
+          'Accept': 'application/json',
+        },
       );
-
+      
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
+        print('Error creating DID: ${response.statusCode}');
+        print('Error body: ${response.body}');
         throw Exception('Failed to create DID: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error creating DID: $e');
     }
   }
-}
+    }
 
 class BubblePageViewModel extends ChangeNotifier {
   final TickerProvider vsync;
   final VoiceService _voiceService;
   String? _publicKeyHex;
   String? _did;
+  
+  // Expose userId for navigation to success page
+  String get userId => _voiceService.userId;
 
   late AnimationController _upAnimationController;
   late AnimationController _downAnimationController;
@@ -141,6 +151,15 @@ class BubblePageViewModel extends ChangeNotifier {
   
   Color _activeColor = Colors.red;
   Color get activeColor => _activeColor;
+  
+  // Methods to create key and DID
+  Future<Map<String, dynamic>> createKey() async {
+    return await _voiceService.createKey();
+  }
+  
+  Future<Map<String, dynamic>> createDid(String publicKeyHex) async {
+    return await _voiceService.createDid(publicKeyHex);
+  }
 
   BubblePageViewModel({required this.vsync})
       : _voiceService = VoiceService(userId: const Uuid().v4()) {
