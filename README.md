@@ -1,129 +1,137 @@
-# 🔐 Voxa - Voice Identity Authentication App
+# 🎙️ Voxa - Voice Identity Authentication App
 
-**Voxa** is a multi-platform Flutter application that provides secure **voice-based identity verification** through an engaging and interactive user experience.
+Voxa is a multi-platform Flutter application that provides **secure voice-based identity verification** with animated visual feedback.
+
+[![Watch Demo](https://img.shields.io/badge/🎥%20Watch%20Demo-YouTube-red)](https://youtu.be/ffwbOwZaceM)
 
 ---
 
-## 🧭 Overview
+## 📋 Overview
 
-Voxa enables users to authenticate using their **voice**, featuring:
-
-- 🎙️ High-quality voice capture  
-- 🎨 Animated visualizations during recording  
-- 🔄 Real-time feedback with waveform displays  
-- 📱 Cross-platform support (iOS, Android, Web, macOS, Windows, Linux)
+Voxa allows users to authenticate using their **voice**, offering a seamless experience through a user-friendly interface and real-time animated feedback.
 
 ---
 
 ## ✨ Features
 
-- 🎤 **Voice Sample Recording**: High-fidelity recording with microphone permission handling  
-- 💬 **Animated UI**: Bubble animations visualizing the voice sample collection  
-- 📊 **Real-time Feedback**: Visual waveform during recording using `audio_waveforms`  
-- 🖥️ **Cross-platform**: Works seamlessly across all major platforms  
-- 🔐 **Microphone Permissions**: Smooth access handling via `permission_handler`
+- 🎤 **Voice Sample Recording** — High-quality audio capture with permission handling  
+- 🌐 **Cross-platform Support** — Works on iOS, Android, Web, macOS, Windows, and Linux  
+- 💫 **Animated UI** — Bubble animations during voice collection  
+- 📈 **Real-time Feedback** — Visual waveform display while recording  
+- 🔐 **Secure Identity** — Voice-based DID creation and authentication  
+- 📲 **Interactive UX** — Visual cues, feedback animations, and instructional guidance
 
 ---
 
 ## 🛠️ Technology Stack
 
-### 🧩 Frontend (Flutter - Dart)
-- **Audio Recording**: `record`  
-- **Waveform Visualization**: `audio_waveforms`  
-- **Animations**: Custom Flutter animations & Lottie (`lottie` package)  
+### 🚀 Frontend
+
+- **Framework**: Flutter (Dart)  
+- **Audio Recording**: [`record`](https://pub.dev/packages/record)  
+- **Waveform Visualization**: [`audio_waveforms`](https://pub.dev/packages/audio_waveforms)  
+- **Animations**: Custom Flutter animations + Lottie (`lottie` package)  
+- **HTTP Client**: `http`  
 - **Permissions**: `permission_handler`  
 - **Local Storage**: `path_provider`  
-- **UUID Generation**: `uuid`  
-- **Networking**: `http` package
+- **UUID Generation**: `uuid`
 
-### ⚙️ Backend (Python - FastAPI)
-- **Framework**: FastAPI  
-- **Voice Embedding**: `resemblyzer`  
-- **Similarity Check**: `scipy.spatial.distance.cosine`  
+### 🔧 Backend
+
+- **Framework**: FastAPI (Python)  
+- **Voice Processing**:
+  - `resemblyzer`: Voice embedding generation  
+  - `scipy`: Cosine similarity comparison  
 - **Database**: MongoDB (`pymongo`)  
-- **Caching**: Redis (`redis`)  
-- **External API Integration**: `httpx` (for `cheqd.net`)  
-- **Configuration**: `pydantic-settings`  
-- **Web Server**: Uvicorn
+- **Cache**: Redis (`redis`)  
+- **API Requests**: `httpx`  
+- **Server**: Uvicorn  
+- **Configuration**: `pydantic-settings`
 
 ---
 
 ## 📁 Project Structure
 
-### 🖼️ Frontend (`/frontend`)
+### 📱 Frontend (`/frontend`)
 
-#### 🔄 BubblePage (Voice Sample Collection)
-- Users record **5 voice samples**
-- Animated **bubbles fill "storage cans"** with each successful recording
-- **Microphone icon pulses** to show readiness & turns into a **GIF while recording**
-- Rejected samples show a **"burst" animation**
-- Step-by-step instructional UI for the user
+Handles UI, audio recording, and API communication.
 
-#### 🔊 Real-time Waveform
-- Displayed during recording using `audio_waveforms`
+- 🎛️ **BubblePage**  
+  - Record 5 voice samples  
+  - Bubble animations represent each sample  
+  - Mic icon pulses and switches to GIF during recording  
+  - "Burst" animation for rejected samples  
+  - Instructional prompts shown per sample  
 
-#### ✅ SuccessPage
-- Shows **success Lottie animation** after voice identity creation
-- Displays the **generated DID**
-- Option to continue to **voice verification**
+- 📡 **Real-time Feedback**  
+  - Waveform displayed using `audio_waveforms` during recording  
 
-#### 🔐 VerifyPage
-- Records new voice input and verifies against stored voiceprint
+- ✅ **SuccessPage**  
+  - Lottie animation upon successful DID creation  
+  - Displays user’s DID  
+  - Option to verify voice  
 
-#### 🔃 Loading States
-- **Lottie animations** indicate loading during backend interactions
+- 🧪 **VerifyPage**  
+  - Allows voice authentication against stored voiceprint  
 
-#### 📦 State Management
-- `ChangeNotifier` + `ViewModel` (`BubblePageViewModel`) for clean UI logic separation
+- 🔄 **State Management**  
+  - `ChangeNotifier` and ViewModel pattern (`BubblePageViewModel`)  
 
-#### 🌐 Backend Communication (`VoiceService`)
-- Handles all **API calls**: voice sample submission, key creation, DID creation, and verification
-
-#### ⚠️ Error Handling
-- Proper **error dialogs** for API and logic failures
+- 🌐 **API Communication**  
+  - `VoiceService` handles backend interaction  
+  - Error dialogs for failed API calls
 
 ---
 
-### 🧠 Backend (`/backend`)
+### 🔙 Backend (`/backend`)
 
-#### 📥 `/collectVoice` (POST)
-- Accepts audio + `user_id`
-- Embeds voice using `resemblyzer`
-- Ensures similarity (≥ 0.85) between samples before accepting
-- Stores in **Redis** temporarily, then persists to **MongoDB** after 5 valid samples
+Handles voice processing, key generation, DID creation, and verification.
 
-#### 🔑 `/keyCreate` (POST)
-- Creates a new **Ed25519 key pair** using `cheqd.net` API
-- Saves `kid` and `publicKeyHex` to MongoDB
+#### 🔊 `/collectVoice` (POST)
+
+- Receives audio + `user_id`
+- Generates embedding with `resemblyzer`
+- Compares similarity with previous samples
+- Requires ≥ 0.85 similarity to accept
+- Temporarily stores embeddings in Redis
+- Stores in MongoDB after 5 valid samples
+
+#### 🔐 `/keyCreate` (POST)
+
+- Receives `userId`
+- Creates Ed25519 key via `cheqd.net`
+- Stores `kid` and `publicKeyHex` in MongoDB
 
 #### 🆔 `/didCreate/{user_id}/{public_key_hex}` (POST)
-- Registers a new **DID** on `cheqd.net` using the provided public key
-- Stores the DID document in MongoDB
 
-#### 🔍 `/verify` (POST)
-- Accepts new voice + `user_id`
-- Generates new embedding, compares to stored ones
-- Successful if similarity ≥ 0.82
+- Calls `cheqd.net` API to create a DID  
+- Stores DID in MongoDB
 
-#### 🔧 Utility Endpoints
-- `/hello` - test endpoint  
-- `/getEmbedding` - placeholder  
-- `/attachCheqdDid` - not implemented
+#### 🧾 `/verify` (POST)
 
----
+- Receives audio + `user_id`
+- Compares new embedding with stored ones
+- Requires ≥ 0.82 similarity to verify
 
-## 🚀 Setup & Run Instructions
+#### 🛠️ Utility Endpoints
 
-> ℹ️ Setup steps are based on standard Flutter and Python project practices. Please refer to the `README.md` files inside the `/frontend` and `/backend` directories.
+- `/hello`: Test endpoint  
+- `/getEmbedding`: Utility  
+- `/attachCheqdDid`: Not yet implemented
 
 ---
 
-## 📬 Contact & Contributions
+## ▶️ Demo
 
-Want to contribute or have suggestions? We'd love to hear from you!
-
-Feel free to open issues or submit pull requests 🤝
+🎥 **Watch the demo here**: [https://youtu.be/ffwbOwZaceM](https://youtu.be/ffwbOwZaceM)
 
 ---
 
-**Voxa** - *Your Voice. Your Identity.* 🔐🗣️
+## ⚙️ Setup & Run
+
+Instructions for setup and run (Flutter & FastAPI) will go here.  
+Make sure to install all dependencies and handle permissions correctly.
+
+---
+
+Made with ❤️ by the Voxa team.
