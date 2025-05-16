@@ -51,7 +51,7 @@ async def voice(
         last_embedding = cached_voices[-1]
         similarity = 1 - cosine(np.array(current_embedding), np.array(last_embedding))
 
-        if similarity >= 0.8:
+        if similarity >= 0.85:
             cached_voices.append(current_embedding)
             count += 1
             
@@ -178,7 +178,6 @@ async def verify(
         return {
             "status": "success",
             "similarity": similarity,
-            "embedding":result,
             "message": "Voice verified successfully."
         }
     else:
